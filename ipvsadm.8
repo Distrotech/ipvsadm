@@ -343,7 +343,7 @@ commands:
 echo "1" > /proc/sys/net/ipv4/ip_forward
 ipchains -A forward -j MASQ -s 192.168.10.0/24 -d 0.0.0.0/0
 ipchains -A input -j ACCEPT -s 0.0.0.0/0 -d 207.175.44.110/31 -m 1
-modprobe ip_masq_ftp
+modprobe ip_masq_ftp in_ports=21
 .fi
 .SH NOTES
 The Linux Virtual Server implements three defense strategies against
