@@ -322,11 +322,11 @@ the real servers being masqueraded by the Linux Director.
 .PP
 .nf
 ipvsadm -A -f 1  -s rr
-ipvsadm -a -t 1 -r 192.168.10.1:0 -m
-ipvsadm -a -t 1 -r 192.168.10.2:0 -m
-ipvsadm -a -t 1 -r 192.168.10.3:0 -m 
-ipvsadm -a -t 1 -r 192.168.10.4:0 -m 
-ipvsadm -a -t 1 -r 192.168.10.5:0 -m 
+ipvsadm -a -f 1 -r 192.168.10.1:0 -m
+ipvsadm -a -f 1 -r 192.168.10.2:0 -m
+ipvsadm -a -f 1 -r 192.168.10.3:0 -m 
+ipvsadm -a -f 1 -r 192.168.10.4:0 -m 
+ipvsadm -a -f 1 -r 192.168.10.5:0 -m 
 .fi
 .PP
 As masquerading is used as the forwarding mechanism in this example,

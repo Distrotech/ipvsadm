@@ -45,7 +45,7 @@
 
 NAME	= ipvsadm
 VERSION	= 1.15
-RELEASE	= 1
+RELEASE	= 2
 
 CC	= gcc
 CFLAGS	= -Wall -Wunused -Wstrict-prototypes -g -O2
