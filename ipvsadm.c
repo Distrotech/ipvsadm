@@ -3,7 +3,7 @@
  *
  *      Version: $Id$
  *
- *      Authors: Wensong Zhang <wensong@iinchina.net>
+ *      Authors: Wensong Zhang <wensong@linux.com>
  *               Peter Kese <peter.kese@ijs.si>
  *
  *      This program is based on ippfvsadm.
@@ -1092,7 +1092,7 @@ void usage_exit(const char *program, const int exit_status) {
                 "  --tcp-service  -t service-address   service-address is host[:port]\n"
                 "  --udp-service  -u service-address   service-address is host[:port]\n"
                 "  --fwmark-service  -f fwmark         fwmark is an integer greater than zero\n"
-                "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc,\n"
+                "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc|lblc,\n"
                 "                                      the default scheduler is %s.\n"
                 "  --persistent   -p [timeout]         persistent service\n"
                 "  --netmask      -M [netmask]         persistent granularity mask\n"

@@ -3,7 +3,7 @@
 #
 #      Version: $Id$
 #
-#      Authors: Wensong Zhang <wensong@iinchina.net>
+#      Authors: Wensong Zhang <wensong@gnuchina.org>
 #               Peter Kese <peter.kese@ijs.si>
 #
 #      This file:
