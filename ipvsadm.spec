@@ -1,10 +1,10 @@
 %define prefix   /usr
-%define ipvs_ver 0.9.10-2.2.14
+%define ipvs_ver 0.9.13-2.2.15
 
 
 Summary: Utility to administer the Linux Virtual Server
 Name: ipvsadm
-Version: 1.9
+Version: 1.10
 Release: 1
 Copyright: GNU General Public Licence
 URL: http://www.linuxvirtualserver.org/
@@ -27,19 +27,8 @@ offered by the Linux kernel with virtual server patch.
 
 %build
 
-#Funky NPROC code to speed things up courtesy of Red Hat's kernel rpm
-if [ -x /usr/bin/getconf ] ; then
-    NRPROC=$(/usr/bin/getconf _NPROCESSORS_ONLN)
-    if [ $NRPROC -eq 0 ] ; then
-        NRPROC=1
-    fi
-else
-    NRPROC=1
-fi
-NRPROC=`expr $NRPROC + $NRPROC`
-
 cd ipvsadm
-CFLAGS="${RPM_OPT_FLAGS}" make -j $NRPROC
+CFLAGS="${RPM_OPT_FLAGS}" make
 
 
 %install
@@ -52,19 +41,19 @@ BUILD_ROOT=${RPM_BUILD_ROOT} make install
 cd ${RPM_BUILD_ROOT}
 # Directories
 find . -type d | sed '1,2d;s,^\.,\%attr(-\,root\,root) \%dir ,' \
-  > ${RPM_BUILD_DIR}/ipvs-%{ver}-%{rel}.files
+  > ${RPM_BUILD_DIR}/ipvs-%{version}-%{release}.files
 # Files
 find . -type f | sed 's,^\.,\%attr(-\,root\,root) ,' \
-  >> ${RPM_BUILD_DIR}/ipvs-%{ver}-%{rel}.files
+  >> ${RPM_BUILD_DIR}/ipvs-%{version}-%{release}.files
 # Symbolic links
 find . -type l | sed 's,^\.,\%attr(-\,root\,root) ,' \
-  >> ${RPM_BUILD_DIR}/ipvs-%{ver}-%{rel}.files
+  >> ${RPM_BUILD_DIR}/ipvs-%{version}-%{release}.files
 
 
 %clean
 rm -rf $RPM_BUILD_DIR/ipvs-0.9.9-2.2.14
 rm -rf $RPM_BUILD_ROOT
-rm ${RPM_BUILD_DIR}/ipvs-%{ver}-%{rel}.files
+rm ${RPM_BUILD_DIR}/ipvs-%{version}-%{release}.files
 
 
 %post
@@ -73,8 +62,8 @@ rm ${RPM_BUILD_DIR}/ipvs-%{ver}-%{rel}.files
 
 %preun
 
+%files -f ../ipvs-%{version}-%{release}.files
 %doc ipvsadm/README
-%files -f ../ipvs-%{ver}-%{rel}.files
 
 
 %changelog
