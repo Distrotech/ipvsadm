@@ -1,13 +1,13 @@
 --------------------------------------------------------------------------
 
-ipvsadm - Version 1.3 - September 8, 1999
+ipvsadm - Version 1.6 - November 7, 1999
 
 This is free software.  See below for details.
 
 ippfvsadm is a utility to administer the IP virtual server services
 offered by the Linux kernel with virtual server patch.
 
-This version of ipvsadm requires Linux kernel version 2.2.12
+This version of ipvsadm requires Linux kernel version 2.2.13
 or later.  Check out the Linux Virtual Server Project home page on the 
 World Wide Web:
 	http://www.LinuxVirutalServer.org/
