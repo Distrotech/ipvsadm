@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------
 
-ipvsadm - Version 1.7 - November 28, 1999
+ipvsadm - Version 1.8 - 13th March 2000
 
 This is free software.  See below for details.
 
@@ -18,7 +18,7 @@ for the most recent information and original sources about ipvsadm.
 To make, make sure your Linux kernel is already patched with IPVS and 
 "make menuconfig" or "make xconfig" to setup the right compiling options, 
 see the README of the virtual server patch for detail, then simply type
-	make
+	./configure && make
 in the source directory.
 
 Install to your liking.  We suggest the following pathnames:
