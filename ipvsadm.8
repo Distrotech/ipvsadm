@@ -176,7 +176,7 @@ services.
 .B -s, --scheduler \fIscheduling-method\fP
 \fIscheduling-method\fP  Algorithm for allocating TCP connections and
 UDP datagrams to real servers.  Scheduling algorithms are implemented
-as kernel modules. Five are shipped with the Linux Virtual Server:
+as kernel modules. Six are shipped with the Linux Virtual Server:
 .sp
 \fBrr\fR - Robin Robin: distribute jobs equally amongst the
 available real servers.
@@ -198,6 +198,14 @@ default.
 the same IP address to the same server if the server is not overloaded
 and available; otherwise assign jobs to servers with fewer jobs, and
 keep it for future assignment.
+.sp
+\fBlblcr\fR - Locality-Based Least-Connection with Replication: assign
+jobs destined for the same IP address to the least-connection node in
+the server set for the IP address. If all the node in the server set
+are over loaded, it picks up a node with fewer jobs in the cluster and
+adds it in the sever set for the target. If the server set has not
+been modified for the specified time, the most loaded node is removed
+from the server set, in order to avoid high degree of replication.
 .TP
 .B -p, --persistent [\fItimeout\fP]
 Specify that a virtual service is persistent. If this option is

@@ -1092,7 +1092,7 @@ void usage_exit(const char *program, const int exit_status) {
                 "  --tcp-service  -t service-address   service-address is host[:port]\n"
                 "  --udp-service  -u service-address   service-address is host[:port]\n"
                 "  --fwmark-service  -f fwmark         fwmark is an integer greater than zero\n"
-                "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc|lblc,\n"
+                "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc|lblc|lblcr,\n"
                 "                                      the default scheduler is %s.\n"
                 "  --persistent   -p [timeout]         persistent service\n"
                 "  --netmask      -M [netmask]         persistent granularity mask\n"
