@@ -39,6 +39,10 @@
  *        Horms               :   ensure that a -r is passed when needed
  *        Wensong Zhang       :   fixed the output of fwmark rules
  *        Horms               :   added kernel version verification
+ *        Horms               :   Specifying command and option options
+ *                                (e.g. -Ln or -At) in one short option
+ *                                with popt problem fixed.
+ *
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
@@ -111,7 +115,7 @@
 #endif
 
 #define IPVSADM_VERSION_NO              "v1.10"
-#define IPVSADM_VERSION_DATE            "2000/05/09"
+#define IPVSADM_VERSION_DATE            "2000/05/25"
 #define IPVSADM_VERSION         IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
 
 #define MINIMUM_IPVS_VERSION_MAJOR      0
@@ -496,9 +500,21 @@ int process_options(int argc, char **argv, int reading_stdin,
 	context = poptGetContext("ipvsadm", argc, argv, options_sub, 0);
 
 	/* 
-         * Discard the first argumet, which we have already paresed
-         */
-        poptGetNextOpt(context);
+	 * Mangle the first argument
+	 * The first option from this argument has been read,
+	 * but there may be others
+	 */
+	c = strlen(argv[1]);
+	if (c > 2) {
+                if(argv[1][1] != '-'){
+                        /* Suffle first option out of argument */
+                        memmove(argv[1]+1, argv[1]+2, c-2);   
+                        argv[1][c-1]='\0';
+                }
+        } else {
+                /* Skip argument */
+                poptGetNextOpt(context);
+        }
 
         while ((c=poptGetNextOpt(context)) >= 0){
 #else
