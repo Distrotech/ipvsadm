@@ -22,17 +22,21 @@ ipvsadm \- administer the routing table on a  Linux Virtual Server
 .SH SYNOPSIS
 .B ipvsadm -[A|E] -[t|u] \fIservice-address\fP [-s \fIscheduler\fP]
 .ti 15
-.B [-p [\fItimeout\fP]] [-M [\fInetmask\fP]]
+.B [-p [\fItimeout\fP]] [-M \fInetmask\fP]
 .br
 .B ipvsadm -D -[t|u] \fIservice-address\fP
 .br
 .B ipvsadm -C
 .br
-.B ipvsadm -[a|e] -[t|u] \fIservice-address\fP -r \fIserver-address\fP
-.ti 15
-.B [-g|-m|-i] [-w \fIweight\fP]
+.B ipvsadm -R
 .br
-.B ipvsadm -d -[t|u] \fIservice-address\fP -r \fIserver-address\fP
+.B ipvsadm -S [-n]
+.br
+.B ipvsadm -[a|e] -[t|u] \fIservice-address\fP -[r|R] \fIserver-address\fP
+.ti 15
+.B [-g|-i|-m] [-w \fIweight\fP]
+.br
+.B ipvsadm -d -[t|u] \fIservice-address\fP -[r|R] \fIserver-address\fP
 .br
 .B ipvsadm -[L|l] [-n]
 .br
@@ -69,50 +73,68 @@ commands maintain public service addresses. Lower-case commands
 maintain the associations between a service address and the network
 hosts to which requests for service are redirected.
 .TP
-\fB-A\fR
-Add a public service address to the routing table. A service address is
-uniquely defined by a triplet: IP address, port number, and protocol type.
+\fB-A, --add-service\fR
+Add a public service address to the routing table. A service address
+is uniquely defined by a triplet: IP address, port number, and
+protocol type.
 .TP
-\fB-D\fR
-Delete a service address from the routing table, along with any associated
-server hosts added with the \fI-a\fP command.
+\fB-E, --edit-service\fR
+Edit a service currently in the routing table.
 .TP
-\fB-C\fR
+\fB-D, --delete-service\fR
+Delete a service address from the routing table, along with any
+associated server hosts added with the \fI-a\fP command.
+.TP
+\fB-C, --clear\fR
 Clear the routing table.
 .TP
-\fB-a\fR
-Associate an existing public service address with a server host to which
-the service may be redirected.
+\fB-R, --restore\fR
+This option only works if ipvsadm is compiled with libpopt.  Restore
+IPVS rules from stdin. Each line read from stdin will be treated as
+the command line options to a separate invocation of ipvsadm. Lines
+read from stdin can optionally begin with "ipvsadm".  The -R option is
+useful to avoid executing a large number or ipvsadm commands when
+constructing an extensive routing table.
 .TP
-\fB-d\fR
-Remove a server from the pool of hosts to which a service may be redirected. 
+\fB-S, --save\fR
+This option only works if ipvsadm is compiled with libpopt.
+Dump the IPVS rules to stdout.
 .TP
-\fB-L, -l\fR
+\fB-a, --add-server\fR
+Associate an existing public service address with a server host to
+which the service may be redirected.
+.TP
+\fB-d, --delete-server\fR
+Remove a server from the pool of hosts to which a service may be
+redirected.
+.TP
+\fB-L, -l, --list\fR
 Display the routing table.
 .TP
-\fB-h\fR
+\fB-h, --help\fR
 Help. Display a description of the command syntax.
 .SS PARAMETERS
 The commands above accept or require zero or more of the following
 parameters. 
 .TP
 .B -t, --tcp-service \fIservice-address\fP
-Use TCP service. The \fIservice-address\fP is a \fIhost\fP and \fIport\fP 
-associated with a service to be redirected. \fIHost\fP can be either
-a plain IP address or a hostname. \fIPort\fP can be either a plain port
-number or the service name of port.
+Use TCP service. The \fIservice-address\fP is a \fIhost\fP and
+\fIport\fP  associated with a service to be redirected. \fIHost\fP can
+be either a plain IP address or a hostname. \fIPort\fP can be either a
+plain port number or the service name of port.
 .TP
 .B -u, --udp-service \fIservice-address\fP
 Use UDP service. See the -t (tcp-service) for the description of 
 the \fIservice-address\fP.
 .TP
 .B -s, --scheduler \fIscheduling-method\fP
-\fIscheduling-method\fP is the algorithm for distributing the jobs to servers:
+\fIscheduling-method\fP is the algorithm for distributing the jobs to
+servers:
 .sp
 \fBrr\fR - robin robin: distribute jobs equally among the available servers.
 .sp
 \fBwrr\fR - weighted round robin: assign more jobs to servers with
-larger capacity (i.e., assign jobs in decending order by \fIweight\fP).
+larger capacity (i.e., assign jobs in descending order by \fIweight\fP).
 .sp
 \fBlc\fR - least-connection: assign more jobs to servers with fewer active 
 jobs.
@@ -122,21 +144,23 @@ fewer active jobs relative to their capacity (i.e., number of active jobs
 divided by \fIweight\fP). This is the default.
 .TP
 .B -p, --persistent [\fItimeout\fP]
-Persistent port. If this switch is specified, multiple requests from a client
-are redirected to the same server each time (the one selected for the first
-request). The \fItimeout\fP of persistent sessions can be specified by the 
-values in seconds, the default is 300 seconds. Use this option to solve 
-problems with cookies, SSL, or FTP with tunneling or direct routing.  
+Persistent port. If this switch is specified, multiple requests from a
+client are redirected to the same server each time (the one selected
+for the first request). The \fItimeout\fP of persistent sessions can
+be specified by the  values in seconds, the default is 300
+seconds. Use this option to solve  problems with cookies, SSL, or FTP
+with tunneling or direct routing.
 .TP
 .B -M, --netmask \fInetmask\fP
-For persistent ports, allows you to specify the granularity at which the
-clients are grouped. The source address of the request is masked with this
-netmask to, for example, direct all clients from a /24 network to the same
-real server. The default is \fI255.255.255.255\fP, which means that the
-persistence granularity is per client host. Use this option to solve 
-problems with non-persistent cache clusters on the client side.
+For persistent ports, allows you to specify the granularity at which
+the clients are grouped. The source address of the request is masked
+with this netmask to, for example, direct all clients from a /24
+network to the same real server. The default is \fI255.255.255.255\fP,
+which means that the persistence granularity is per client host. Use
+this option to solve  problems with non-persistent cache clusters on
+the client side.
 .TP
-.B -r, --real-server \fIserver-address\fP
+.B -r, -R, --real-server \fIserver-address\fP
 Real server that an associated request for service may be assigned to.
 The \fIserver-address\fP is the \fIhost\fP address of a real server,
 and may plus \fIport\fP. \fIHost\fP can be either a plain IP address
@@ -152,9 +176,9 @@ be equal to that of the service address.
 .sp
 \fB-g, --gatewaying\fR  Use gatewaying (direct routing). This is the default.
 .sp
-\fB-m, --masquerading\fR  Use masquerading (network access translation, or NAT).
-.sp
 \fB-i, --ipip\fR  Use ipip encapsulation (tunneling).
+.sp
+\fB-m, --masquerading\fR  Use masquerading (network access translation, or NAT).
 .TP
 .B -w, --weight \fIweight\fP
 \fIweight\fP is an integer (default 1) specifying the processing
@@ -182,6 +206,19 @@ ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.2 -m
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.3 -m 
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.4 -m 
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.5 -m 
+.fi
+.PP
+Alternatively this could be achieved in a single ipvsadm command.
+.PP
+.nf
+echo "
+-A -t 207.175.44.110:80 -s rr
+-a -t 207.175.44.110:80 -r 192.168.10.1 -m
+-a -t 207.175.44.110:80 -r 192.168.10.2 -m
+-a -t 207.175.44.110:80 -r 192.168.10.3 -m
+-a -t 207.175.44.110:80 -r 192.168.10.4 -m
+-a -t 207.175.44.110:80 -r 192.168.10.5 -m
+" | ipvsadm -R
 .fi
 .PP
 The default route of the Web server hosts must be set to the
