@@ -30,7 +30,7 @@ LIB_SEARCH = /lib /usr/lib /usr/local/lib
 POPT_LIB = $(shell for i in $(LIB_SEARCH); do \
   if [ -f $$i/libpopt.a ]; then \
     if nm $$i/libpopt.a | fgrep -q poptGetContext; then \
-    	echo "-L$$i -lpopt"; \
+        echo "-L$$i -lpopt"; \
     fi; \
   fi; \
 done)
