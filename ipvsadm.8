@@ -1,21 +1,40 @@
-.TH IPVSADM 8 "Tue Sep 24 1999" "LVS Administration" " Linux Administrator's Guide"
+.\"
+.\"     This program is free software; you can redistribute it and/or modify
+.\"     it under the terms of the GNU General Public License as published by
+.\"     the Free Software Foundation; either version 2 of the License, or
+.\"     (at your option) any later version.
+.\"
+.\"     This program is distributed in the hope that it will be useful,
+.\"     but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\"     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"     GNU General Public License for more details.
+.\"
+.\"     You should have received a copy of the GNU General Public License
+.\"     along with this program; if not, write to the Free Software
+.\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.\"	$Id$	
+.\"
+.TH IPVSADM 8 "October 5, 1999" "LVS Administration" " Linux Administrator's Guide"
 .UC 4
 .SH NAME
 ipvsadm \- administer the routing table on a  Linux Virtual Server
 .SH SYNOPSIS
-.B ipvsadm -A -[t|u] \fIv.v.v.v:vport\fP [-s \fIwlc|rr|wrr\fP] [-p]
+.B ipvsadm -[A|E] -[t|u] \fIservice-address\fP [-s \fIscheduler\fP]
+.ti 15
+.B [-p [\fItimeout\fP]]
 .br
-.B ipvsadm -D -[t|u] \fIv.v.v.v:vport\fP
+.B ipvsadm -D -[t|u] \fIservice-address\fP
 .br
 .B ipvsadm -C
 .br
-.B ipvsadm -a -[t|u] \fIv.v.v.v:vport\fP -r \fId.d.d.d[:dport]\fP
+.B ipvsadm -[a|e] -[t|u] \fIservice-address\fP -r \fIserver-address\fP
 .ti 15
 .B [-g|-m|-i] [-w \fIweight\fP]
 .br
-.B ipvsadm -d -[t|u] \fIv.v.v.v:vport\fP -r \fId.d.d.d[:dport]\fP
+.B ipvsadm -d -[t|u] \fIservice-address\fP -r \fIserver-address\fP
 .br
-.B ipvsadm [-L|-l]
+.B ipvsadm -[L|l] [-n]
 .br
 .B ipvsadm -h
 .SH DESCRIPTION
@@ -23,27 +42,23 @@ Use \fBipvsadm\fP(8) to build a Linux Virtual Server (LVS) based on a cluster
 of two or more nodes. The active node of the cluster redirects service requests 
 to a collection of server hosts that will actually perform the services. You 
 use \fBipvsadm\fR(8) to set up, maintain or inspect the kernel routing table.
-Supported features include two protocols (TCP and UDP),
-three packet-forwarding methods (NAT, tunneling, and direct routing), and
-three load balancing algorithms (round robin, weighted round robin, and
+Supported features include two protocols (TCP and UDP), three packet-forwarding 
+methods (NAT, tunneling, and direct routing), and four load balancing 
+algorithms (round robin, weighted round robin, least-connection and
 weighted least-connection).
 .PP
 The command has these two basic versions:
 .TP
-.B ipvsadm COMMAND [protocol] service-address
-.ti 8
-.B [scheduling-method]
+.B ipvsadm COMMAND [protocol] service-address [scheduling-method] [persistent-timeout]
 .TP
-.B ipvsadm command [protocol] service-address
-.ti 8
-.B server-address [packet-forwarding-method] [server-capacity]  
+.B ipvsadm command [protocol] service-address server-address [packet-forwarding-method] [server-capacity]  
 .PP
-The first version adds a public service address (an IP address and port
+The first version adds a public service address (a host address and port
 associated with a service request rather than a specific network host) to the
-kernel routing table and specifies the method for assigning
-service requests to hosts. The second version associates an existing public
-service address in the table with the addresses of the server hosts to which
-requests for service may be redirected. This version also indicates the
+kernel routing table and specifies the method for assigning service requests 
+to hosts and the persistent timeout. The second version associates an existing 
+public service address in the table with the addresses of the server hosts to 
+which requests for service may be redirected. This version also indicates the
 packet-forwarding method and the capacity of the server hosts relative to one
 another.
 .SS COMMANDS
@@ -79,54 +94,70 @@ Help. Display a description of the command syntax.
 The commands above accept or require zero or more of the following
 parameters. 
 .TP
-\fB[protocol]\fP
-The protocol to be used for the virtual server:
-.sp
-\fB-t\fR Use TCP.
-.sp
-\fB-u\fR Use UDP.
+.B -t, --tcp-service \fIservice-address\fP
+Use TCP service. The \fIservice-address\fP is a \fIhost\fP and \fIport\fP 
+associated with a service to be redirected. \fIHost\fP can be either
+a plain IP address or a hostname. \fIPort\fP can be either a plain port
+number or the service name of port.
 .TP
-.B [packet-forwarding-method]
-.sp
-\fB-g\fR Use gatewaying (direct routing). This is the default.
-.sp
-\fB-m\fR Use masquerading (network access translation, or NAT).
-.sp
-\fB-i\fR Use ipip encapsulation (tunneling).
+.B -u, --udp-service \fIservice-address\fP
+Use UDP service. See the -t (tcp-service) for the description of 
+the \fIservice-address\fP.
 .TP
-.B [-w \fIweight\fP]
-\fIweight\fP is an integer (default 1) specifying the processing capacity 
-of a server relative to that of others in the pool.
-.TP
-.B [-s \fIscheduling-method\fP]
+.B -s, --scheduler \fIscheduling-method\fP
 \fIscheduling-method\fP is the algorithm for distributing the jobs to servers:
-.sp
-\fBwlc\fR - weighted least-connection: assign more jobs to servers with
-fewer active jobs relative to their capacity (i.e., number of active jobs
-divided by \fIweight\fP). This is the default.
 .sp
 \fBrr\fR - robin robin: distribute jobs equally among the available servers.
 .sp
 \fBwrr\fR - weighted round robin: assign more jobs to servers with
 larger capacity (i.e., assign jobs in decending order by \fIweight\fP).
+.sp
+\fBlc\fR - least-connection: assign more jobs to servers with fewer active 
+jobs.
+.sp
+\fBwlc\fR - weighted least-connection: assign more jobs to servers with
+fewer active jobs relative to their capacity (i.e., number of active jobs
+divided by \fIweight\fP). This is the default.
 .TP
-.B [-p]
+.B -p, --persistent [\fItimeout\fP]
 Persistent port. If this switch is specified, multiple requests from a client
 are redirected to the same server each time (the one selected for the first
-request). Use this option to solve problems with cookies, SSL, or PASV FTP
-with tunneling or direct routing. The timeout of persistent sessions is 300
-seconds by default. 
+request). The \fItimeout\fP of persistent sessions can be specified by the 
+values in seconds, the default is 300 seconds. Use this option to solve 
+problems with cookies, SSL, or FTP with tunneling or direct routing.  
 .TP
-.I v.v.v.v:vport
-The public IP address and port of a service to be redirected. 
+.B -r, --real-server \fIserver-address\fP
+Real server that an associated request for service may be assigned to.
+The \fIserver-address\fP is the \fIhost\fP address of a real server,
+and may plus \fIport\fP. \fIHost\fP can be either a plain IP address or a hostname. 
+\fIPort\fP can be either a plain port number or the service name of port.
+In the case of the masquerading method, the host address is usually
+a private IP address, and the port can be different from that of the
+associated service. If \fIport\fP is not specified, the port specified 
+in the service address will be used. With the tunneling and direct routing
+methods, \fIport\fP must be equal to that of the service address. 
 .TP
-.B -r \fId.d.d.d:[dport]\fR
-The actual IP address and port of a real server that an associated request
-for service may be assigned to. This address is typically on a physically
-separate network; in the case of masquerade address mapping, it is usually
-also a private IP address. If not specified, \fIdport\fP will be the same as
-the \fIvport\fP specified in the service address. With the direct routing
-method (but not the other two), \fIdport\fP may be different from \fIvport\fP. 
+.B [packet-forwarding-method]
+.sp
+\fB-g, --gatewaying\fR  Use gatewaying (direct routing). This is the default.
+.sp
+\fB-m, --masquerading\fR  Use masquerading (network access translation, or NAT).
+.sp
+\fB-i, --ipip\fR  Use ipip encapsulation (tunneling).
+.TP
+.B -w, --weight \fIweight\fP
+\fIweight\fP is an integer (default 1) specifying the processing capacity 
+of a server relative to that of others in the pool. The valid values of
+\fIweight\fP is from 0 through 65535. The server with weight=0 is "quiesced"
+and receives no new jobs but still serves the existing jobs. It is useful
+to cool down overloaded servers or get some servers out of service for
+maintenance.
+.TP
+.B -n, --numeric
+Numeric output.
+IP addresses and port numbers will be printed in numeric format.
+By default, the program will try to display them as host names,
+network names, or services (whenever applicable).
 .SH EXAMPLE
 The following commands configure a redirector host to distribute incoming Web
 requests addressed to port 80 on 207.175.44.110 equally to port 80 on five Web
@@ -134,12 +165,12 @@ server hosts.  The networking model for this example is NAT with each of the
 real servers being masqueraded by the LVS.
 .PP
 .nf
-ipvsadmin -A -t 207.175.44.110:80 -s rr
-ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.0 -m
-ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.1 -m
-ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.2 -m 
-ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.3 -m 
-ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.4 -m 
+ipvsadm -A -t 207.175.44.110:80 -s rr
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.0 -m
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.1 -m
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.2 -m 
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.3 -m 
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.4 -m 
 .fi
 .PP
 The default route of the Web server hosts must be set to the redirector box, and
