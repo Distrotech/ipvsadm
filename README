@@ -10,7 +10,7 @@ offered by the Linux kernel with virtual server patch.
 This version of ipvsadm requires Linux kernel version 2.2.14 plus IPVS
 patch 0.9.10 or later.  Check out the Linux Virtual Server Project
 home page on the  World Wide Web:
-	http://www.LinuxVirutalServer.org/
+	http://www.LinuxVirtualServer.org/
 	or
 	http://www.Linux-VS.org/
 for the most recent information and original sources about ipvsadm.
