@@ -462,7 +462,7 @@ int parse_timeout(char *buf, unsigned *timeout)
                 return 1;
         }
         
-        if ((i=string_to_number(buf, 1, 86400*365)) == -1)
+        if ((i=string_to_number(buf, 1, 86400*31)) == -1)
                 return 0;
 
         *timeout = i * HZ;
@@ -471,7 +471,7 @@ int parse_timeout(char *buf, unsigned *timeout)
 
 
 void usage_exit(char *program) {
-        printf("ipvsadm  v1.5 1999/10/13\n"
+        printf("ipvsadm  v1.6 1999/11/7\n"
                "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]] [-M [netmask]]\n"
                "       %s -D -[t|u] service-address\n"
                "       %s -C\n"
