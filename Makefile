@@ -19,6 +19,7 @@ CC      = gcc
 CFLAGS	= -Wall -Wunused -g -O2
 SBIN    = $(BUILD_ROOT)/sbin
 MAN     = $(BUILD_ROOT)/usr/man/man8
+MKDIR   = mkdir
 INSTALL = install
 INCLUDE = -I/usr/src/linux/include
 LIB_SEARCH = /lib /usr/lib /usr/local/lib
@@ -45,7 +46,7 @@ endif
 LIBS = $(POPT_LIB)
 DEFINES = $(POPT_DEFINE)
 
-.PHONY = all clean
+.PHONY = all clean install
 
 all:            ipvsadm
 
@@ -55,7 +56,9 @@ ipvsadm:	$(OBJS)
 
 install:        ipvsadm
 		strip ipvsadm
+		if [ ! -d $(SBIN) ]; then $(MKDIR) -p $(SBIN); fi
 		$(INSTALL) -m 0755 -o root -g root ipvsadm $(SBIN)
+		if [ ! -d $(MAN) ]; then $(MKDIR) -p $(MAN); fi
 		$(INSTALL) -m 0644 -o root -g root ipvsadm.8 $(MAN)
 
 clean:
