@@ -1,4 +1,17 @@
 .\"
+.\"     ipvsadm(8) manual page
+.\"
+.\"	$Id$	
+.\"
+.\"     Authors: Mike Wangsmo <wanger@redhat.com>
+.\"              Wensong Zhang <wensong@iinchina.net>
+.\"
+.\"     Changes:
+.\"       Horms            :  Updated to reflect recent change of ipvsadm
+.\"                        :  Style guidance taken from ipchains(8)
+.\"                        :  where appropriate.
+.\"       Wensong Zhang    :  Added a short note about the defense strategies
+.\"
 .\"     This program is free software; you can redistribute it and/or modify
 .\"     it under the terms of the GNU General Public License as published by
 .\"     the Free Software Foundation; either version 2 of the License, or
@@ -13,18 +26,17 @@
 .\"     along with this program; if not, write to the Free Software
 .\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 .\"
-.\"	$Id$	
 .\"
-.TH IPVSADM 8 "October 17, 1999" "LVS Administration" " Linux Administrator's Guide"
+.TH IPVSADM 8 "9th April 2000" "LVS Administration" " Linux Administrator's Guide"
 .UC 4
 .SH NAME
-ipvsadm \- administer the routing table on a  Linux Virtual Server
+ipvsadm \- Linux Virtual Server administration
 .SH SYNOPSIS
-.B ipvsadm -[A|E] -[t|u] \fIservice-address\fP [-s \fIscheduler\fP]
+.B ipvsadm -[A|E] -[t|u|f] \fIservice-address\fP [-s \fIscheduler\fP]
 .ti 15
 .B [-p [\fItimeout\fP]] [-M \fInetmask\fP]
 .br
-.B ipvsadm -D -[t|u] \fIservice-address\fP
+.B ipvsadm -D -[t|u|f] \fIservice-address\fP
 .br
 .B ipvsadm -C
 .br
@@ -32,133 +44,154 @@ ipvsadm \- administer the routing table on a  Linux Virtual Server
 .br
 .B ipvsadm -S [-n]
 .br
-.B ipvsadm -[a|e] -[t|u] \fIservice-address\fP -[r|R] \fIserver-address\fP
+.B ipvsadm -[a|e] -[t|u|f] \fIservice-address\fP
 .ti 15
-.B [-g|-i|-m] [-w \fIweight\fP]
+.B -[r|R] \fIserver-address\fP [-g|-i|-m] [-w \fIweight\fP]
 .br
-.B ipvsadm -d -[t|u] \fIservice-address\fP -[r|R] \fIserver-address\fP
+.B ipvsadm -d -[t|u|f] \fIservice-address\fP -[r|R] \fIserver-address\fP
 .br
 .B ipvsadm -[L|l] [-n]
 .br
 .B ipvsadm -h
 .SH DESCRIPTION
-Use \fBipvsadm\fP(8) to build a Linux Virtual Server (LVS) based on a
-cluster  of two or more nodes. The active node of the cluster
-redirects service requests  to a collection of server hosts that will
-actually perform the services. You  use \fBipvsadm\fR(8) to set up,
-maintain or inspect the kernel routing table.  Supported features
-include two protocols (TCP and UDP), three packet-forwarding  methods
-(NAT, tunneling, and direct routing), and four load balancing
-algorithms (round robin, weighted round robin, least-connection and
-weighted least-connection).
+\fBIpvsadm\fR(8) is used to set up, maintain or inspect the virtual
+server table in the Linux kernel. Linux Virtual Server can be used to
+built scalable network services based on a cluster of two or more
+nodes. The active node of the cluster redirects service requests  to a
+collection of server hosts that will actually perform the
+services. Supported features include two protocols (TCP and UDP),
+three packet-forwarding methods (NAT, tunneling, and direct routing),
+and four load balancing algorithms (round robin, weighted round robin,
+least-connection and weighted least-connection).
 .PP
-The command has these two basic versions:
+The command has two basic formats for execution:
 .TP
-.B ipvsadm COMMAND [protocol] service-address [scheduling-method] [persistent-timeout]
+.B ipvsadm \fICOMMAND\fP [\fIprotocol\fP] \fIservice-address\fP 
+.ti 15
+.B [\fIscheduling-method\fP] [\fIpersistence options\fP]
 .TP
-.B ipvsadm command [protocol] service-address server-address [packet-forwarding-method] [server-capacity]  
+.B ipvsadm \fIcommand\fP [\fIprotocol\fP] \fIservice-address\fP 
+.ti 15
+.B \fIserver-address\fP [\fIpacket-forwarding-method\fP] 
+.ti 15
+.B [\fIweight options\fP]  
 .PP
-The first version adds a public service address (a host address and
-port associated with a service request rather than a specific network
-host) to the kernel routing table and specifies the method for
-assigning service requests  to hosts and the persistent timeout. The
-second version associates an existing  public service address in the
-table with the addresses of the server hosts to  which requests for
-service may be redirected. This version also indicates the
-packet-forwarding method and the capacity of the server hosts relative
-to one another.
+The first format manipulates a virtual service and the algorithm for
+assigning service requests  to real servers. Optionally, a the
+persistent timeout and mask for the granularity of a persistent
+service may be specified. The second format manipulates a real servers
+that are associated with an existing virtual service. When specifying
+a real server, the packet-forwarding method and the weight of the real
+server, relative to other real servers for the virtual service, may be
+specified, otherwise defaults will be used.
 .SS COMMANDS
-\fBipvsadm\fR(8) recognizes the commands described below. Upper-case
-commands maintain public service addresses. Lower-case commands
-maintain the associations between a service address and the network
-hosts to which requests for service are redirected.
+\fBipvsadm\fR(8) recognises the commands described below. Upper-case
+commands maintain virtual services. Lower-case commands maintain real
+servers that are associated with a virtual service.
 .TP
 \fB-A, --add-service\fR
-Add a public service address to the routing table. A service address
-is uniquely defined by a triplet: IP address, port number, and
-protocol type.
+Add a virtual service. A service address is uniquely defined by a
+triplet: IP address, port number, and protocol. Alternatively, a
+virtual service may be defined by a firewall-mark.
 .TP
 \fB-E, --edit-service\fR
-Edit a service currently in the routing table.
+Edit a virtual service.
 .TP
 \fB-D, --delete-service\fR
-Delete a service address from the routing table, along with any
-associated server hosts added with the \fI-a\fP command.
+Delete a virtual service, along with any associated real servers.
 .TP
 \fB-C, --clear\fR
-Clear the routing table.
+Clear the virtual server table.
 .TP
 \fB-R, --restore\fR
-This option only works if ipvsadm is compiled with libpopt.  Restore
-IPVS rules from stdin. Each line read from stdin will be treated as
-the command line options to a separate invocation of ipvsadm. Lines
-read from stdin can optionally begin with "ipvsadm".  The -R option is
-useful to avoid executing a large number or ipvsadm commands when
-constructing an extensive routing table.
+Restore Linux Virtual Server rules from stdin. Each line read from stdin
+will be treated as the command line options to a separate invocation of
+\fIipvsadm\fP. Lines read from stdin can optionally begin with "ipvsadm".
+This option is useful to avoid executing a large number or \fIipvsadm\fP 
+commands when constructing an extensive routing table.
+.sp
+This option only works if \fIipvsadm\fP is compiled against popt(3).  
 .TP
 \fB-S, --save\fR
-This option only works if ipvsadm is compiled with libpopt.
-Dump the IPVS rules to stdout.
+Dump the Linux Virtual Server rules to stdout in a format that can be read
+by -R|--restore.
+.sp
+This option only works if \fIipvsadm\fP is compiled against popt(3).  
 .TP
 \fB-a, --add-server\fR
-Associate an existing public service address with a server host to
-which the service may be redirected.
+Add a real server to a virtual service.
 .TP
 \fB-d, --delete-server\fR
-Remove a server from the pool of hosts to which a service may be
-redirected.
+Remove a real server from a virtual service.
 .TP
 \fB-L, -l, --list\fR
-Display the routing table.
+Display the virtual server table.
 .TP
 \fB-h, --help\fR
-Help. Display a description of the command syntax.
+Display a description of the command syntax.
 .SS PARAMETERS
 The commands above accept or require zero or more of the following
 parameters. 
 .TP
 .B -t, --tcp-service \fIservice-address\fP
-Use TCP service. The \fIservice-address\fP is a \fIhost\fP and
-\fIport\fP  associated with a service to be redirected. \fIHost\fP can
-be either a plain IP address or a hostname. \fIPort\fP can be either a
-plain port number or the service name of port.
+Use TCP service. The \fIservice-address\fP is of the form
+\fIhost[:port]\fP.  \fIHost\fP may be one of a plain IP address or a
+hostname. \fIPort\fP may be either a plain port number or the service
+name of port. The \fIPort\fP may be omitted, in which case zero will
+be used. A \fIPort\fP  of zero is only valid if the service is
+persistent as per the -p|--persistent option, in which case it is a
+wild-card port, that is connections will be accepted to any port.
 .TP
 .B -u, --udp-service \fIservice-address\fP
-Use UDP service. See the -t (tcp-service) for the description of 
+Use UDP service. See the -t|--tcp-service for the description of 
 the \fIservice-address\fP.
 .TP
+.B -f, --fwmark-service \fIinteger\fP
+Use a firewall-mark, an integer value greater than zero, to denote a
+virtual service instead of an address, port and protocol, UDP or
+TCP. The marking of packets with a firewall-mark is configured using
+the -m|--mark option to \fBipchains\fR(8). It can be used to build a
+virtual service assoicated to different IP addresses or port numbers,
+but sharing the same real server collection.
+.TP
 .B -s, --scheduler \fIscheduling-method\fP
-\fIscheduling-method\fP is the algorithm for distributing the jobs to
-servers:
+\fIscheduling-method\fP  Algorithm for allocating TCP connections and
+UDP datagrams to real servers.  Scheduling algorithms are implemented
+as kernel modules. Four are shipped with the Linux Virtual Server:
 .sp
-\fBrr\fR - robin robin: distribute jobs equally among the available servers.
+\fBrr\fR - Robin Robin: distribute jobs equally amongst the
+available real servers.
 .sp
-\fBwrr\fR - weighted round robin: assign more jobs to servers with
-larger capacity (i.e., assign jobs in descending order by \fIweight\fP).
+\fBwrr\fR - Weighted Round Robin: assign jobs to real servers
+proportionally to there real servers' weight. Servers with higher
+weights receives new jobs first and get more jobs than servers with
+lower weights, servers with equal weights get an eaqual distribution
+of new jobs.
 .sp
-\fBlc\fR - least-connection: assign more jobs to servers with fewer active 
-jobs.
+\fBlc\fR - Least-Connection: assign more jobs to real servers with
+fewer acive jobs.
 .sp
-\fBwlc\fR - weighted least-connection: assign more jobs to servers with
-fewer active jobs relative to their capacity (i.e., number of active jobs
-divided by \fIweight\fP). This is the default.
+\fBwlc\fR - Weighted Least-Connection: assign more jobs to servers
+with fewer jobs and relative to the real servers' weight. This is the
+default.
 .TP
 .B -p, --persistent [\fItimeout\fP]
-Persistent port. If this switch is specified, multiple requests from a
-client are redirected to the same server each time (the one selected
-for the first request). The \fItimeout\fP of persistent sessions can
-be specified by the  values in seconds, the default is 300
-seconds. Use this option to solve  problems with cookies, SSL, or FTP
-with tunneling or direct routing.
+Specify that a virtual service is persistent. If this option is
+specified, multiple requests from a client are redirected to the same
+real server selected for the first request.  Optionally, the
+\fItimeout\fP of persistent sessions may be specified given in
+seconds, otherwise the default of 300 seconds will be used. This
+option may be used in conjunction with protocols such as SSL or FTP
+where it is important that clients consistently connect with the same
+real server.
 .TP
 .B -M, --netmask \fInetmask\fP
-For persistent ports, allows you to specify the granularity at which
-the clients are grouped. The source address of the request is masked
-with this netmask to, for example, direct all clients from a /24
-network to the same real server. The default is \fI255.255.255.255\fP,
-which means that the persistence granularity is per client host. Use
-this option to solve  problems with non-persistent cache clusters on
-the client side.
+Specify the granularity with which clients are grouped for persistent
+virtual services.  The source address of the request is masked with
+this netmask to direct all clients from a network to the same real
+server. The default is \fI255.255.255.255\fP, that is, the persistence
+granularity is per client host. Less specific netmasks may be used to
+resolve problems with non-persistent cache clusters on the client side.
 .TP
 .B -r, -R, --real-server \fIserver-address\fP
 Real server that an associated request for service may be assigned to.
@@ -179,25 +212,38 @@ be equal to that of the service address.
 \fB-i, --ipip\fR  Use ipip encapsulation (tunneling).
 .sp
 \fB-m, --masquerading\fR  Use masquerading (network access translation, or NAT).
+.sp
+\fBNote:\fR  Regardless of the packet-forwarding mechanism specified,
+real servers for addresses for which there are interfaces on the local
+node will be use the local forwarding method. This cannot be specified
+by \fIipvsadm\fP, rather  it set by the kernel as real servers are
+added or modified.
+.sp
+If the \fIserver-address\fP is specified as one of its own interfaces,
+packets for this server will be just passed to upper layer to handle
+it locally. None of the above three packet-forwarding methods is
+applied.
 .TP
 .B -w, --weight \fIweight\fP
-\fIweight\fP is an integer (default 1) specifying the processing
-capacity  of a server relative to that of others in the pool. The
-valid values of \fIweight\fP is from 0 through 65535. The server with
-weight=0 is "quiesced" and receives no new jobs but still serves the
-existing jobs. It is useful to cool down overloaded servers or get
-some servers out of service for maintenance.
+\fIWeight\fP is an integer specifying the capacity  of a server
+relative to the others in the pool. The valid values of \fIweight\fP
+are 0 through to 65535. The default is 1. Quiescent servers are
+specified with a weight of zero. A quiescent server will receive no
+new jobs but still serve the existing jobs, for all scheduling
+algorithms distributed with the Linux Virtual Server. Setting a
+quiescent server may be useful if the server is overloaded or needs
+to be taken out of service for maintenance.
 .TP
 .B -n, --numeric
 Numeric output.  IP addresses and port numbers will be printed in
-numeric format.  By default, the program will try to display them as
-host names, network names, or services (whenever applicable).
+numeric format rather than as as host names and services respectively,
+which is the  default.
 .SH EXAMPLE
-The following commands configure a redirector host to distribute
-incoming Web requests addressed to port 80 on 207.175.44.110 equally
-to port 80 on five Web server hosts.  The networking model for this
-example is NAT with each of the real servers being masqueraded by the
-LVS.
+The following commands configure a LVS host to distribute incoming
+requests addressed to port 80 on 207.175.44.110 equally to port 80 on
+five real servers server. The forwarding method used in this example
+is NAT, with each of the real servers being masqueraded by the Linux
+Director.
 .PP
 .nf
 ipvsadm -A -t 207.175.44.110:80 -s rr
@@ -208,7 +254,7 @@ ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.4 -m
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.5 -m 
 .fi
 .PP
-Alternatively this could be achieved in a single ipvsadm command.
+Alternatively, this could be achieved in a single ipvsadm command.
 .PP
 .nf
 echo "
@@ -221,23 +267,77 @@ echo "
 " | ipvsadm -R
 .fi
 .PP
-The default route of the Web server hosts must be set to the
-redirector box, and the redirector box must be configured to forward
-the masquerading packets.
+The default route of the real servers must be set to the LVS host and
+the LVS host will need to be configured to forward and masquerade
+packets. This can be achieved using the following command:
 .PP
 .nf
 echo "1" > /proc/sys/net/ipv4/ip_forward
 ipchains -A forward -j MASQ -s 192.168.10.0/24 -d 0.0.0.0/0
 .fi
+.SH NOTES
+The Linux Virtual Server implements three defense strategies against
+some types of denial of service attack. The LVS host creates an entry
+for each connection in order to keep its state, and each entry
+occupies 128 bytes effective memory. The DoS attack to LVS is to
+increase entries as much as possible until it runs out of memory. The
+three defense strategies against the attack are to randomly drop some
+entries in the table, to drop 1/rate packets before forwarding them,
+to use secure tcp state transition table and short timeouts. The
+strategies are controlled by sysctl variables:
+.sp
+/proc/sys/net/ipv4/vs/drop_entry
+/proc/sys/net/ipv4/vs/drop_packet
+/proc/sys/net/ipv4/vs/secure_tcp
+.PP
+Their valid values are from 0 to 3, 0 means that this strategy is
+always disabled, 1 and 2 mean automatic modes (when there is no enough
+available memory, the strategy is enabled and the variable is
+automatically set to 2, otherwise the strategy is disabled and the
+variable is set to 1), and 3 means that that the strategy is always
+enabled. The default values of those variables are 0. The available
+memory threshold and secure tcp timeouts can be tuned by sysctl too.
 .SH FILES
-.I /proc/net/ip-masq/vs
-.SH SEE ALSO
-.BR lvs (8),
-.BR lvs.cf (5).
-.SH AUTHORS
+.I /proc/net/ip_masq/vs
+.br
+.I /proc/sys/net/ipv4/vs/am_droprate
+.br
+.I /proc/sys/net/ipv4/vs/amemthresh
+.br
+.I /proc/sys/net/ipv4/vs/drop_entry
+.br
+.I /proc/sys/net/ipv4/vs/drop_packet
+.br
+.I /proc/sys/net/ipv4/vs/secure_tcp
+.br
+.I /proc/sys/net/ipv4/vs/timeout_close
+.br
+.I /proc/sys/net/ipv4/vs/timeout_closewait
+.br
+.I /proc/sys/net/ipv4/vs/timeout_established
+.br
+.I /proc/sys/net/ipv4/vs/timeout_finwait
+.br
+.I /proc/sys/net/ipv4/vs/timeout_icmp
+.br
+.I /proc/sys/net/ipv4/vs/timeout_lastack
+.br
+.I /proc/sys/net/ipv4/vs/timeout_listen
+.br
+.I /proc/sys/net/ipv4/vs/timeout_synack
+.br
+.I /proc/sys/net/ipv4/vs/timeout_synrecv
+.br
+.I /proc/sys/net/ipv4/vs/timeout_synsent
+.br
+.I /proc/sys/net/ipv4/vs/timeout_timewait
+.br
+.I /proc/sys/net/ipv4/vs/timeout_udp
+.SH AUTHOR
 .nf
 ipvsadm - Wensong Zhang <wensong@iinchina.net>
-	     Peter Kese <peter.kese@ijs.si>
+          Peter Kese <peter.kese@ijs.si>
 man page - Mike Wangsmo <wanger@redhat.com>
            Wensong Zhang <wensong@iinchina.net>
+           Horms <horms@valinux.com>
 .fi
