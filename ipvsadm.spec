@@ -1,16 +1,16 @@
 %define prefix   /usr
-%define ipvs_ver 0.9.13-2.2.15
+%define ipvs_ver 0.9.14-2.2.16
 
 
 Summary: Utility to administer the Linux Virtual Server
 Name: ipvsadm
-Version: 1.10
+Version: 1.11
 Release: 1
 Copyright: GNU General Public Licence
-URL: http://www.linuxvirtualserver.org/
+URL: http://www.LinuxVirtualServer.org/
 Packager: Horms <horms@vergenet.net>
 Group: Applications/System
-Source0: http://www.linuxvirutalserver.org/ipvs-%{ipvs_ver}.tar.gz
+Source0: http://www.LinuxVirutalServer.org/software/ipvs-%{ipvs_ver}.tar.gz
 BuildRoot: /var/tmp/%name-%{PACKAGE_VERSION}-root
 Docdir: %{prefix}/doc
 Provides: %{name}-%{version}
