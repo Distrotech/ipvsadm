@@ -15,14 +15,14 @@
 .\"
 .\"	$Id$	
 .\"
-.TH IPVSADM 8 "October 5, 1999" "LVS Administration" " Linux Administrator's Guide"
+.TH IPVSADM 8 "October 17, 1999" "LVS Administration" " Linux Administrator's Guide"
 .UC 4
 .SH NAME
 ipvsadm \- administer the routing table on a  Linux Virtual Server
 .SH SYNOPSIS
 .B ipvsadm -[A|E] -[t|u] \fIservice-address\fP [-s \fIscheduler\fP]
 .ti 15
-.B [-p [\fItimeout\fP]]
+.B [-p [\fItimeout\fP]] [-M [\fInetmask\fP]]
 .br
 .B ipvsadm -D -[t|u] \fIservice-address\fP
 .br
@@ -126,6 +126,14 @@ request). The \fItimeout\fP of persistent sessions can be specified by the
 values in seconds, the default is 300 seconds. Use this option to solve 
 problems with cookies, SSL, or FTP with tunneling or direct routing.  
 .TP
+.B -M, --netmask \fInetmask\fP
+For persistent ports, allows you to specify the granularity at which the
+clients are grouped. The source address of the request is masked with this
+netmask to, for example, direct all clients from a /24 network to the same
+real server. The default is \fI255.255.255.255\fP, which means that the
+persistence granularity is per client host. Use this option to solve 
+problems with non-persistent cache clusters on the client side.
+.TP
 .B -r, --real-server \fIserver-address\fP
 Real server that an associated request for service may be assigned to.
 The \fIserver-address\fP is the \fIhost\fP address of a real server,
@@ -184,7 +192,6 @@ ipchains -A forward -j MASQ -s 192.168.10.0/24 -d 0.0.0.0/0
 .I /proc/net/ip-masq/vs
 .SH SEE ALSO
 .BR lvs (8),
-.BR piranha (8),
 .BR lvs.cf (5).
 .SH AUTHORS
 .nf
