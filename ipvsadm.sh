@@ -11,6 +11,9 @@
 #
 # Based on init script for ipchains by Joshua Jensen <joshua@redhat.com>
 #
+# Changes:
+#       Wenzhuo Zhang           :       fixed the typo of failure function
+#
 # config: /etc/sysconfig/ipvsadm
 # config: /etc/ipvsadm.rules
 
@@ -37,14 +40,14 @@ else
   function success {
     echo -n "Success"
   }
-  function Failure {
+  function failure {
     echo -n "Failed"
   }
 fi
 
 # Check for ipvsadm in both /sbin and /usr/sbin
 # The default install puts it in /sbin, as it is analogos to commands such
-# as route and ipchains that live in /sbin.  Some vendors, most notibly 
+# as route and ipchains that live in /sbin.  Some vendors, most notibly
 # Red Hat insist on moving it to /usr/sbin
 if [ ! -x /sbin/ipvsadm -a  ! -x /usr/sbin/ipvsadm ]; then
     exit 0
@@ -64,7 +67,7 @@ case "$1" in
   ;;
 
   stop)
-        action "Clearing the current IPVS table:" ipvsadm -C
+	action "Clearing the current IPVS table:" ipvsadm -C
 	rm -f /var/lock/subsys/ipvsadm
 	;;
 
@@ -74,9 +77,9 @@ case "$1" in
 	;;
 
   panic)
-	# I'm not sure what panic does but in the case of IPVS	
-        # it makes sense just to clear everything
-        action "Clearing the current IPVS table:" ipvsadm -C
+	# I'm not sure what panic does but in the case of IPVS
+	# it makes sense just to clear everything
+	action "Clearing the current IPVS table:" ipvsadm -C
 	;;
 
   status)
@@ -88,7 +91,7 @@ case "$1" in
 	ipvsadm-save > $IPVSADM_CONFIG  2>/dev/null && \
 	  success "Saving IPVS table to $IPVSADM_CONFIG" || \
 	  failure "Saving IPVS table to $IPVSADM_CONFIG"
-        echo
+	echo
 	;;
 
   *)
@@ -98,4 +101,3 @@ case "$1" in
 esac
 
 exit 0
-
