@@ -1,0 +1,4 @@
+/sbin/ipvsadm
+/sbin/ipvsadm-restore
+/sbin/ipvsadm-save
+/usr/man/man8/ipvsadm.8

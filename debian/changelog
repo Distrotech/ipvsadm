@@ -1,0 +1,10 @@
+ipvsadm (1.12) nstable; urgency=low
+
+  * A release
+
+ -- Horms <horms@vergenet.net>  Thu, 14 Dec 2000 17:00:00 -0800
+
+Local variables:
+mode: debian-changelog
+End:
+eoch

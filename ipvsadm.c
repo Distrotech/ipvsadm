@@ -9,6 +9,10 @@
  *      This program is based on ippfvsadm.
  *
  *      Changes:
+ *
+ *	  P.Copeland	      :   added some casts to stop gcc grumbling,
+ *                                and made small tweeks to stop -pedantic
+ *                                complaining.
  *        Wensong Zhang       :   added the editting service & destination support
  *        Wensong Zhang       :   added the feature to specify persistent port
  *        Jacob Rief          :   found the bug that masquerading dest of
@@ -335,7 +339,8 @@ int parse_options(int argc, char **argv, int reading_stdin,
 		NULL_option
 	};
 
-	context= poptGetContext("ipvsadm", argc, argv, options_main, 0);
+	context = poptGetContext("ipvsadm", argc,
+                                 (const char**) argv, options_main, 0);
 
         if ((cmd = poptGetNextOpt(context)) < 0)
                 usage_exit(argv[0], -1);
@@ -391,7 +396,8 @@ int parse_options(int argc, char **argv, int reading_stdin,
         }
 
 	poptFreeContext(context);
-	context = poptGetContext("ipvsadm", argc, argv, options_sub, 0);
+	context = poptGetContext("ipvsadm", argc,
+                                 (const char **) argv, options_sub, 0);
 
 	/* 
 	 * Mangle the first argument
@@ -465,7 +471,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 case 'R':
                         if (destination_set)
                                 fail(2, "Destination already set");
-                        destination_set=1;
+                        destination_set = 1;
                         parse = parse_service(optarg,
                                               mc->u.vs_user.protocol,
                                               &mc->u.vs_user.daddr, 
@@ -480,19 +486,19 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 case 'i':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
                         break;
                 case 'g':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
                         break;
                 case 'm':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = 0;
                         break;
                 case 'w':
@@ -552,7 +558,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
 	 * in the argument list
 	 */
 	if (mc->u.vs_user.vs_flags == IP_VS_SVC_F_PERSISTENT){
-		optarg=poptGetArg(context);
+		optarg= (char *) poptGetArg(context);
        		parse = parse_timeout(optarg, &mc->u.vs_user.timeout);
        		if (parse == 0)
                         fail(2, "illegal timeout for persistent service");
@@ -659,8 +665,8 @@ int parse_options(int argc, char **argv, int reading_stdin,
 	case 'R':
 		fprintf(stderr, 
 			"ipvsadm: Invalid option: -R or --restore\n"
-			"Restoring ipvsadm rules is only supported when \n"
-			"ipvsadm is compiled against libpopt.\n");
+			"  Restoring ipvsadm rules is only supported when \n"
+			"  ipvsadm is compiled against libpopt.\n");
 		exit(-1);
 		break;
         default:
@@ -731,7 +737,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 case 'R':
                         if (destination_set)
                                 fail(2, "Destination already set");
-                        destination_set=1;
+                        destination_set = 1;
                         parse = parse_service(optarg,
                                               mc->u.vs_user.protocol,
                                               &mc->u.vs_user.daddr, 
@@ -746,19 +752,19 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 case 'i':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
                         break;
                 case 'g':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
                         break;
                 case 'm':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
-			forward_set=1;
+			forward_set = 1;
                         mc->u.vs_user.masq_flags = 0;
                         break;
                 case 'w':
@@ -943,7 +949,7 @@ int parse_netmask(char *buf, u_int32_t *addr)
 {
         struct in_addr inaddr;
 
-	if(buf==NULL)
+	if(buf == NULL)
 		return 0;
         
         if (inet_aton(buf, &inaddr) != 0)
@@ -968,7 +974,7 @@ int parse_fwmark(char *buf, u_int32_t *fwmark)
 
         if ((tmpl=string_to_number(buf, 0, 0)) == -1)
                 return 0;
-        *fwmark=tmpl;
+        *fwmark = tmpl;
 
         return 1;
 }
@@ -1002,10 +1008,10 @@ int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port)
         else                
                 return SERVICE_NONE;
 
-        result|=SERVICE_ADDR;
+        result |= SERVICE_ADDR;
         
         if (portp != NULL){
-                result|=SERVICE_PORT;
+                result |= SERVICE_PORT;
         
                 if ((portn=string_to_number(portp+1, 0, 65535)) != -1)
                         *port = htons(portn);
@@ -1076,10 +1082,14 @@ void usage_exit(const char *program, const int exit_status) {
                 "  --edit-service    -E        edit virtual service with options\n"
                 "  --delete-service  -D	      delete virtual service\n"
                 "  --clear           -C        clear the whole table\n"
+                );
 #ifdef HAVE_POPT
+	fprintf(stream,
                 "  --restore         -R	      restore rules from stdin\n"
                 "  --save            -S	      save rules to stdout\n"
+                );
 #endif
+	fprintf(stream,
                 "  --add-server      -a        add real server with options\n"
                 "  --edit-server     -e        edit real server with options\n"
                 "  --delete-server   -d        delete real server\n"
@@ -1093,16 +1103,22 @@ void usage_exit(const char *program, const int exit_status) {
                 "  --udp-service  -u service-address   service-address is host[:port]\n"
                 "  --fwmark-service  -f fwmark         fwmark is an integer greater than zero\n"
                 "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc|lblc|lblcr,\n"
-                "                                      the default scheduler is %s.\n"
+                "                                      the default scheduler is %s.\n",
+		DEF_SCHED);
+
+        fprintf(stream,
                 "  --persistent   -p [timeout]         persistent service\n"
                 "  --netmask      -M [netmask]         persistent granularity mask\n"
                 "  --real-server  -r|-R server-address server-address is host (and port)\n"
                 "  --gatewaying   -g                   gatewaying (direct routing) (default)\n"
+                );
+                
+        fprintf(stream,
                 "  --ipip         -i                   ipip encapsulation (tunneling)\n"
                 "  --masquerading -m                   masquerading (NAT)\n"
                 "  --weight:      -w <weight>          capacity of real server\n"
-                "  --numeric      -n                   numeric output of addresses and ports\n",
-                DEF_SCHED);
+                "  --numeric      -n                   numeric output of addresses and ports\n"
+		);
         
         exit(exit_status);
 }
@@ -1150,7 +1166,7 @@ void check_ipvs_version(void)
                                 MINIMUM_IPVS_VERSION_MINOR,
                                 MINIMUM_IPVS_VERSION_PATCH);
 		}
-		buffer[strlen(buffer)-1]='\0';
+		buffer[strlen(buffer)-1] = '\0';
 	}
         fclose(handle);
 }
@@ -1173,6 +1189,7 @@ void list_vs(unsigned int format)
         /*
          * Read and print the first three head lines
          */
+        printf("ipvsadm utility %s using ", IPVSADM_VERSION_NO );
         for (i=0; i<2 && !feof(handle); i++) {
                 if (fgets(buffer, sizeof(buffer), handle)
                     && !(format & FMT_RULE))
@@ -1271,7 +1288,7 @@ void print_vsinfo(char *buf, unsigned int format)
                 free(dname);
         } else if (buf[0] == 'F') {
                 /* fwmark virtual service entry */
-                if ((n = sscanf(buf, "%s %X %s %s %d %lX", protocol, 
+                if ((n = sscanf(buf, "%s %X %s %s %ud %lX", protocol, 
                                 &fwmark, scheduler, flags, 
                                 &timeout, &temp2)) == -1)
                         exit(1);
@@ -1304,7 +1321,7 @@ void print_vsinfo(char *buf, unsigned int format)
                 /* TCP/UDP virtual service entry  */
                 fwmark=0;  /* Reset firewall mark to unused */
                 
-                if ((n = sscanf(buf, "%s %lX:%hX %s %s %d %lX",
+                if ((n = sscanf(buf, "%s %lX:%hX %s %s %ud %lX",
                                 protocol, &temp, &vport, scheduler,
                                 flags, &timeout, &temp2)) == -1)
                         exit(1);

@@ -8,28 +8,43 @@
 #
 #      This file:
 #
-#      ChangeLog
+#	ChangeLog - 
 #
-#      Wensong        :   Modified the Makefile and the spec files so
-#                     :   that rpms can be created with ipvsadm alone
-#      P.Copeland     :   Modified the Makefile and the spec files so
-#                     :   that it is possible to create rpms on the fly
-#                     :   using 'make rpms'
-#                     :   Also added NAME, VERSION and RELEASE numbers to
-#                     :   the Makefile
-#      Horms          :   Updated to add config_stream.c dynamic_array.c
-#                     :   Added autodetection of libpot
-#                     :   Added BUILD_ROOT support
-#      Wensong        :   Changed the OBJS according to detection
-#      Horms          :   Moved ipvsadm back into /sbin where it belongs
-#                         as it is more or less analogous to both route 
-#                         and ipchains both of which reside in /sbin.
-#                         Added rpm target whose only dependancy is 
-#                         the rpms target
+#	P.Copeland	:	Added some casts to stop gcc grumbling.
+#				Tried compiling with -pedantic to find any
+#				oddities that should be fixed however -pedantic
+#				*REALLY* hates popt though ipvsadm will compile
+#				perfectly without popt.
+#				Fixed the problem where ipvasdm.8 isn't wrapped
+#				into the rpm because rpm tries to compress the
+#				man page and then forgets to tell itself the new
+#				name.
+#				Minor changes, bumped the patch number up
+#
+#	Wensong		:	Modified the Makefile and the spec files so
+#				that rpms can be created with ipvsadm alone
+#
+#	P.Copeland	:	Modified the Makefile and the spec files so
+#				that it is possible to create rpms on the fly
+#				using 'make rpms'
+#				Also added NAME, VERSION and RELEASE numbers to
+#				the Makefile
+#
+#	Horms		:	Updated to add config_stream.c dynamic_array.c
+#				Added autodetection of libpot
+#			:	Added BUILD_ROOT support
+#
+#	Wensong		:	Changed the OBJS according to detection
+#
+#	Horms		:	Moved ipvsadm back into /sbin where it belongs
+#				as it is more or less analogous to both route 
+#				and ipchains both of which reside in /sbin.
+#				Added rpm target whose only dependancy is 
+#				the rpms target
 #
 
 NAME	= ipvsadm
-VERSION	= 1.12
+VERSION	= 1.13
 RELEASE	= 1
 
 CC	= gcc
@@ -68,7 +83,7 @@ endif
 LIBS = $(POPT_LIB)
 DEFINES = $(POPT_DEFINE)
 
-.PHONY = all clean install
+.PHONY = all clean install dist distclean rpm rpms
 
 all:            ipvsadm
 
@@ -89,7 +104,10 @@ install:        ipvsadm
 
 clean:
 		rm -f ipvsadm *.o core *~ $(NAME).spec \
-			$(NAME)-$(VERSION).tar.gz
+			$(NAME)-$(VERSION).tar.gz 
+		rm -rf debian/tmp
+
+distclean:	clean
 
 dist:		clean
 		sed -e "s/@@VERSION@@/$(VERSION)/g" \
@@ -107,6 +125,11 @@ rpms:		dist
 		cp $(NAME)-$(VERSION).tar.gz /usr/src/redhat/SOURCES/
 		cp $(NAME).spec /usr/src/redhat/SPECS/
 		(cd /usr/src/redhat/SPECS/ ; rpm -ba $(NAME).spec)
+
+deb:		debs
+
+debs:		
+		dpkg-buildpackage
 
 %.o:	%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $(DEFINES) -c $<

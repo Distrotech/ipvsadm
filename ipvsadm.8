@@ -219,7 +219,7 @@ real server.
 .sp
 \fBNote:\fR If a virtual service is to handle FTP connections then
 persistence must be set for the virtual service if Direct Routing or
-NAT is used as the forwarding mechanism. If masquerading is used in
+Tunnelling is used as the forwarding mechanism. If Masquerading is used in
 conjunction with an FTP service than persistence is not necessary, but
 the ip_masq_ftp kernel module must be used.  This module may be
 manually inserted into the kernel using insmod(8).
@@ -303,7 +303,6 @@ echo "
 -a -t 207.175.44.110:80 -r 192.168.10.5:80 -m
 " | ipvsadm -R
 .fi
-r
 .PP
 As masquerading is used as the forwarding mechanism in this example, the
 default route of the real servers must be set to the linux director, which
