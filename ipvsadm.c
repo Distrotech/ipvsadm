@@ -20,6 +20,7 @@
  *        Wensong Zhang       :   added the long options
  *        Wensong Zhang       :   added the hostname and portname input
  *        Wensong Zhang       :   added the hostname and portname output
+ *	  Lars Marowsky-Brée  :   added persistence granularity support
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
@@ -92,6 +93,7 @@ int service_to_port(const char *name, unsigned short proto);
 char * port_to_service(int port, unsigned short proto);
 
 int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port);
+int parse_netmask(char *buf, u_int32_t *addr);
 int parse_timeout(char *buf, unsigned *timeout);
 
 void usage_exit(char *program);
@@ -116,6 +118,7 @@ static struct option long_options[] =
         {"persistent", 2, 0, 'p'},
         {"real-server", 1, 0, 'r'},
         {"masquerading", 0, 0, 'm'},
+        {"netmask", 1, 0, 'M'},
         {"ipip", 0, 0, 'i'},
         {"gatewaying", 0, 0, 'g'},
         {"weight", 1, 0, 'w'},
@@ -143,11 +146,6 @@ int main(int argc, char **argv)
         memset(&mc, 0, sizeof(struct ip_masq_ctl));
         
         /*
-         * weight=0 is allowed, which means that server is quiesced.
-         */
-        mc.u.vs_user.weight = -1;
-        
-        /*
          *	Want user virtual server control
          */
         if ((cmd = getopt_long(argc, argv, "AEDCaedlLh",
@@ -158,12 +156,12 @@ int main(int argc, char **argv)
         case 'A':	
                 mc.m_cmd = IP_MASQ_CMD_ADD;
                 mc.m_target = IP_MASQ_TARGET_VS;
-                optstr = "t:u:s:p::";
+                optstr = "t:u:s:M:p::";
                 break;
         case 'E':	
                 mc.m_cmd = IP_MASQ_CMD_SET;
                 mc.m_target = IP_MASQ_TARGET_VS;
-                optstr = "t:u:s:p::";
+                optstr = "t:u:s:M:p::";
                 break;
         case 'D':
                 mc.m_cmd = IP_MASQ_CMD_DEL;
@@ -201,10 +199,20 @@ int main(int argc, char **argv)
         }
 
         /*
+         * weight=0 is allowed, which means that server is quiesced.
+         */
+        mc.u.vs_user.weight = -1;
+        
+        /*
          * Set direct routing as default forwarding method
          */
         mc.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
-	
+
+        /*
+         * Set the default persistent granularity to /32 masking
+         */
+        mc.u.vs_user.netmask	= ((unsigned long int) 0xffffffff);
+
         while ((c=getopt_long(argc, argv, optstr,
                               long_options, NULL)) != EOF) {
                 switch (c) {
@@ -235,6 +243,12 @@ int main(int argc, char **argv)
                                               &mc.u.vs_user.timeout);
                         if (parse == 0) fail(2, "illegal timeout "
                                              "for persistent service");
+                        break;
+                case 'M':
+                        parse = parse_netmask(optarg,
+                                              &mc.u.vs_user.netmask);
+                        if (parse != 1) fail(2, "illegal virtual server "
+                                             "persistent mask specified");
                         break;
                 case 'r':
                 case 'R':
@@ -380,6 +394,25 @@ int string_to_number(const char *s, int min, int max)
 
 
 /*
+ * Get netmask.
+ * Return 0 if failed,
+ * 	  1 if addr read
+ */
+int parse_netmask(char *buf, u_int32_t *addr)
+{
+        struct in_addr inaddr;
+
+        if (inet_aton(buf, &inaddr) != 0)
+                *addr = inaddr.s_addr;
+        else if (host_to_addr(buf, &inaddr) != -1)
+                *addr = inaddr.s_addr;
+        else
+                return 0;
+        
+        return 1;
+}
+
+/*
  * Get IP address and port from the argument. 
  * Return 0 if failed,
  * 	  1 if addr read
@@ -438,8 +471,8 @@ int parse_timeout(char *buf, unsigned *timeout)
 
 
 void usage_exit(char *program) {
-        printf("ipvsadm  v1.4 1999/10/5\n"
-               "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]]\n"
+        printf("ipvsadm  v1.5 1999/10/13\n"
+               "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]] [-M [netmask]]\n"
                "       %s -D -[t|u] service-address\n"
                "       %s -C\n"
                "       %s -[a|e] -[t|u] service-address -r server-address [options]\n"
@@ -464,6 +497,7 @@ void usage_exit(char *program) {
                "  --scheduler    -s <scheduler>      It can be rr|wrr|lc|wlc,\n"
                "                                     the default scheduler is %s.\n"
                "  --persistent   -p [timeout]        persistent port\n"
+               "  --netmask      -M [netmask]        persistent granularity mask\n"
                "  --real-server  -r server-address   server-address is host (and port)\n"
                "  --masquerading -m                  masquerading (NAT)\n"
                "  --ipip         -i                  ipip encapsulation (tunneling)\n"
@@ -527,16 +561,17 @@ print_vsinfo(char *buf, unsigned int format)
 
         /* virtual service variables */
         static char protocol[20];
-        struct in_addr	laddr;
-        unsigned short	lport;
+        struct in_addr	vaddr;
+        struct in_addr	vmask;
+        unsigned short	vport;
         static char scheduler[10];
-        static char flags[20];
+        static char flags[40];
         unsigned int timeout;
 
         /* destination variables */
         static char arrow[10];
-        struct in_addr	raddr;
-        unsigned short	rport;
+        struct in_addr	daddr;
+        unsigned short	dport;
         static char fwd[10];
         int weight;
         int activeconns;
@@ -544,52 +579,59 @@ print_vsinfo(char *buf, unsigned int format)
         
         int n;
         unsigned long temp;
-
+	unsigned long temp2;
+	
         if (buf[0] == ' ') {
                 /* destination entry */
                 if ((n = sscanf(buf, " %s %lX:%hX %s %d %d %d",
-                                arrow, &temp, &rport, fwd, &weight,
+                                arrow, &temp, &dport, fwd, &weight,
                                 &activeconns, &inactconns)) == -1)
                         exit(1);
                 if (n != 7)
                         fail(2, "unexpected input data");
                 
-                raddr.s_addr = (__u32) htonl(temp);
+                daddr.s_addr = (__u32) htonl(temp);
 
                 if (format & FMT_NUMERIC) {
                         sprintf(tmpbuf, "%s:%u",
-                                inet_ntoa(raddr), rport);
+                                inet_ntoa(daddr), dport);
                 } else {
-                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&raddr),
-                                port_to_service(rport, proto));
+                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&daddr),
+                                port_to_service(dport, proto));
                 }
                 printf("  -> %-27s %-7s %-6d %-10d %-10d\n",
                        tmpbuf, fwd, weight, activeconns, inactconns);
         } else {
                 /* virtual service entry */
-                if ((n = sscanf(buf, "%s %lX:%hX %s %s %d", protocol, &temp,
-                                &lport, scheduler, flags, &timeout)) == -1)
+                if ((n = sscanf(buf, "%s %lX:%hX %s %s %d %lX", protocol, &temp,
+                                &vport, scheduler, flags, &timeout, &temp2)) == -1)
                         exit(1);
-                if (n!=6 && n!=4)
+                if (n!=7 && n!=4)
                         fail(2, "unexpected input data");
 
-                laddr.s_addr = (__u32) htonl(temp);
+                vaddr.s_addr = (__u32) htonl(temp);
+                vmask.s_addr = (__u32) htonl(temp2);
                 if (strcmp(protocol, "TCP") == 0) proto = IPPROTO_TCP;
                 else if (strcmp(protocol, "UDP") == 0) proto = IPPROTO_UDP;
                 else proto = 0;
 
                 if (format & FMT_NUMERIC) {
                         sprintf(tmpbuf, "%s:%u",
-                                inet_ntoa(laddr), lport);
+                                inet_ntoa(vaddr), vport);
                 } else {
-                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&laddr),
-                                port_to_service(lport, proto));
+                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&vaddr),
+                                port_to_service(vport, proto));
                 }
                 printf("%s  %s %s", protocol, tmpbuf, scheduler);
                 if (n == 4)
                         printf("\n");
-                else
-                        printf(" %s %d\n", flags, timeout/HZ);
+                else {
+                        printf(" %s %d", flags, timeout/HZ);
+                        if (vmask.s_addr == (unsigned long int) 0xffffffff)
+                                printf("\n");
+                        else
+                                printf(" mask %s\n", inet_ntoa(vmask));
+                }
         }
 }
 
