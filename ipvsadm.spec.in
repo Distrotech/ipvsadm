@@ -70,9 +70,6 @@ rm ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
   the rpm
 - Made a number of -pedantic mods though popt will not compile with
   -pedantic
-- Made a slight change in the description that ipvsadm on it's own
-  displays so that people can differentiate between ipvsadm's version
-  and the kernel version of ipvs which was confusing previously
 
 * Wed Aug 9 2000 Horms <horms@vergenet.net>
 - Removed Obseletes tag as ipvsadm is back in /sbin where it belongs 

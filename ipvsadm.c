@@ -1190,7 +1190,6 @@ void list_vs(unsigned int format)
         /*
          * Read and print the first three head lines
          */
-        printf("ipvsadm utility %s using ", IPVSADM_VERSION_NO );
         for (i=0; i<2 && !feof(handle); i++) {
                 if (fgets(buffer, sizeof(buffer), handle)
                     && !(format & FMT_RULE))

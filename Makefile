@@ -10,17 +10,6 @@
 #
 #	ChangeLog - 
 #
-#	P.Copeland	:	Added some casts to stop gcc grumbling.
-#				Tried compiling with -pedantic to find any
-#				oddities that should be fixed however -pedantic
-#				*REALLY* hates popt though ipvsadm will compile
-#				perfectly without popt.
-#				Fixed the problem where ipvasdm.8 isn't wrapped
-#				into the rpm because rpm tries to compress the
-#				man page and then forgets to tell itself the new
-#				name.
-#				Minor changes, bumped the patch number up
-#
 #	Wensong		:	Modified the Makefile and the spec files so
 #				that rpms can be created with ipvsadm alone
 #
@@ -41,6 +30,17 @@
 #				and ipchains both of which reside in /sbin.
 #				Added rpm target whose only dependancy is 
 #				the rpms target
+#
+#	P.Copeland	:	Added some casts to stop gcc grumbling.
+#				Tried compiling with -pedantic to find any
+#				oddities that should be fixed however -pedantic
+#				*REALLY* hates popt though ipvsadm will compile
+#				perfectly without popt.
+#				Fixed the problem where ipvasdm.8 isn't wrapped
+#				into the rpm because rpm tries to compress the
+#				man page and then forgets to tell itself the new
+#				name.
+#				Minor changes, bumped the patch number up
 #
 
 NAME	= ipvsadm
