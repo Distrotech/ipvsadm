@@ -9,15 +9,27 @@
 #      This file:
 #
 #      ChangeLog
+#
+#      Wensong        :   Modified the Makefile and the spec files so
+#                     :   that rpms can be created with ipvsadm alone
+#      P.Copeland     :   Modified the Makefile and the spec files so
+#                     :   that it is possible to create rpms on the fly
+#                     :   using 'make rpms'
+#                     :   Also added NAME, VERSION and RELEASE numbers to
+#                     :   the Makefile
 #      Horms          :   Updated to add config_stream.c dynamic_array.c
 #                     :   Added autodetection of libpot
 #                     :   Added BUILD_ROOT support
 #      Wensong        :   Changed the OBJS according to detection
 #
 
-CC      = gcc
+NAME	= ipvsadm
+VERSION	= 1.11
+RELEASE	= 4
+
+CC	= gcc
 CFLAGS	= -Wall -Wunused -g -O2
-SBIN    = $(BUILD_ROOT)/sbin
+SBIN    = $(BUILD_ROOT)/usr/sbin
 MAN     = $(BUILD_ROOT)/usr/man/man8
 MKDIR   = mkdir
 INSTALL = install
@@ -57,12 +69,28 @@ ipvsadm:	$(OBJS)
 install:        ipvsadm
 		strip ipvsadm
 		if [ ! -d $(SBIN) ]; then $(MKDIR) -p $(SBIN); fi
-		$(INSTALL) -m 0755 -o root -g root ipvsadm $(SBIN)
+		$(INSTALL) -m 0755 ipvsadm $(SBIN)
 		if [ ! -d $(MAN) ]; then $(MKDIR) -p $(MAN); fi
-		$(INSTALL) -m 0644 -o root -g root ipvsadm.8 $(MAN)
+		$(INSTALL) -m 0644 ipvsadm.8 $(MAN)
 
 clean:
-		rm -f ipvsadm *.o core *~
+		rm -f ipvsadm *.o core *~ $(NAME).spec \
+			$(NAME)-$(VERSION).tar.gz
+
+dist:		clean
+		sed -e "s/@@VERSION@@/$(VERSION)/g" \
+                    -e "s/@@RELEASE@@/$(RELEASE)/g" \
+                    < ipvsadm.spec.in > ipvsadm.spec
+		( cd .. ; tar czvf $(NAME)-$(VERSION).tar.gz \
+			--exclude CVS \
+			--exclude $(NAME)-$(VERSION).tar.gz \
+			ipvsadm ; \
+			mv $(NAME)-$(VERSION).tar.gz ipvsadm )
+
+rpms:		dist
+		cp $(NAME)-$(VERSION).tar.gz /usr/src/redhat/SOURCES/
+		cp $(NAME).spec /usr/src/redhat/SPECS/
+		(cd /usr/src/redhat/SPECS/ ; rpm -ba $(NAME).spec)
 
 %.o:	%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $(DEFINES) -c $<
