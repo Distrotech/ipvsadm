@@ -114,8 +114,8 @@
 #define IPVS_OPTION_PROCESSING          "getopt_long"
 #endif
 
-#define IPVSADM_VERSION_NO              "v1.10"
-#define IPVSADM_VERSION_DATE            "2000/05/25"
+#define IPVSADM_VERSION_NO              "v1.11"
+#define IPVSADM_VERSION_DATE            "2000/06/16"
 #define IPVSADM_VERSION         IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
 
 #define MINIMUM_IPVS_VERSION_MAJOR      0
@@ -692,6 +692,15 @@ int process_options(int argc, char **argv, int reading_stdin,
 
         if (mc.m_target == IP_MASQ_TARGET_VS &&
             (mc.m_cmd == IP_MASQ_CMD_ADD || mc.m_cmd == IP_MASQ_CMD_SET)) {
+                /*
+                 * Make sure that port zero service is persistent
+                 */
+                if (!mc.u.vs_user.vfwmark &&
+                    !mc.u.vs_user.vport &&
+                    (mc.u.vs_user.vs_flags != IP_VS_SVC_F_PERSISTENT))
+                        fail(2, "Zero port specified "
+                             "for non-persistent service");
+
                 /*
                  * Set the default scheduling algorithm if not specified
                  */
