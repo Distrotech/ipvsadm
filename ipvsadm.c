@@ -8,6 +8,12 @@
  *
  *      This program is based on ippfvsadm.
  *
+ *      Changes:
+ *        Wensong Zhang       :   added the feature to specify persistent port
+ *        Jacob Rief          :   found the bug that masquerading dest of
+ *                                different vport and dport cannot be deleted.
+ *        Wensong Zhang       :   fixed it and changed some cosmetic things
+ *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
  *      Copyright (c) 1998 Wensong Zhang
@@ -75,7 +81,7 @@ int main(int argc, char **argv)
 {
 	struct ip_masq_ctl mc;
 	int cmd, c;
-	int pares;
+	int parse;
 	char *optstr;
 	int result;
 	int sockfd;
@@ -89,8 +95,8 @@ int main(int argc, char **argv)
 	memset (&mc, 0, sizeof(struct ip_masq_ctl));
         
         /*
-         * weight=0 is allowed, which means server not available
-         * will be implemented in the future.
+         * weight=0 is allowed, which means server is quiesced.
+         * This will be implemented in the future.
          */
         /*  mc.u.vs_user.weight = -1; */
         
@@ -143,7 +149,9 @@ int main(int argc, char **argv)
                         usage_exit(argv);
 	}
 
-	/* use direct routing as default forwarding method */
+	/*
+         * Set direct routing as default forwarding method
+         */
 	mc.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
 	
 	while ((c = getopt (argc, argv, optstr)) != EOF) {
@@ -153,9 +161,9 @@ int main(int argc, char **argv)
                                 if (mc.u.vs_user.protocol != 0)
                                         fail(2, "protocol already specified");
                                 mc.u.vs_user.protocol=(c=='t' ? IPPROTO_TCP : IPPROTO_UDP);
-                                pares = parse_addr(optarg, &mc.u.vs_user.vaddr, 
+                                parse = parse_addr(optarg, &mc.u.vs_user.vaddr, 
                                                    &mc.u.vs_user.vport);
-                                if (pares != 2) fail(2, "illegal virtual server "
+                                if (parse != 2) fail(2, "illegal virtual server "
                                                      "address:port specified");
                                 break;
                         case 'p':
@@ -172,12 +180,12 @@ int main(int argc, char **argv)
                                 break;
                         case 'r':
                         case 'R':
-                                pares = parse_addr(optarg, &mc.u.vs_user.daddr, 
+                                parse = parse_addr(optarg, &mc.u.vs_user.daddr, 
                                                    &mc.u.vs_user.dport);
-                                if (pares == 0) fail(2, "illegal virtual server "
+                                if (parse == 0) fail(2, "illegal virtual server "
                                                      "address:port specified");
                                 /* copy vport to dport if none specified */
-                                if (pares == 1) mc.u.vs_user.dport = mc.u.vs_user.vport;
+                                if (parse == 1) mc.u.vs_user.dport = mc.u.vs_user.vport;
                                 break;
                         case 'w':
                                 if (mc.u.vs_user.weight != 0)
@@ -198,26 +206,32 @@ int main(int argc, char **argv)
 	if (optind < argc)
                 fail(2, "unknown arguments found in command line");
 
-	/* set the default scheduling algorithm if none specified */
-	if (mc.m_target == IP_MASQ_TARGET_VS && mc.m_cmd == IP_MASQ_CMD_ADD
-	    && strlen(mc.m_tname) == 0) {
-	        strcpy(mc.m_tname,DEF_SCHED);
+	if (mc.m_target == IP_MASQ_TARGET_VS
+            && mc.m_cmd == IP_MASQ_CMD_ADD) {
+                /*
+                 * Set the default scheduling algorithm if not specified
+                 */
+	        if (strlen(mc.m_tname) == 0)
+                        strcpy(mc.m_tname,DEF_SCHED);
 	}
 
-        /*
-         * Set the default weight 1
-         */
-        if (mc.u.vs_user.weight == 0)
-                mc.u.vs_user.weight = 1;
+        if (mc.m_target == IP_MASQ_TARGET_VS
+            && mc.m_cmd == IP_MASQ_CMD_ADD_DEST) {
+                /*
+                 * Set the default weight 1 if not specified
+                 */
+                if (mc.u.vs_user.weight == 0)
+                        mc.u.vs_user.weight = 1;
 
-        /*
-         * The destination port must be equal to the service port if the
-         * IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
-         */
-        if ((mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL)
-            || (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
-                mc.u.vs_user.dport = mc.u.vs_user.vport;
-	
+                /*
+                 * The destination port must be equal to the service port if the
+                 * IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
+                 */
+                if ((mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL)
+                    || (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
+                        mc.u.vs_user.dport = mc.u.vs_user.vport;
+        }
+
 	sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (sockfd==-1) {
 		perror("socket creation failed");
@@ -228,6 +242,7 @@ int main(int argc, char **argv)
 			    IP_FW_MASQ_CTL, (char *)&mc, sizeof(mc));
 	if (result) {
 		perror("setsockopt failed");
+
 		/*
                  *    Print most common error messages
                  */
@@ -274,7 +289,8 @@ int main(int argc, char **argv)
 }
 
 
-/* get ip address from the argument. 
+/*
+ * Get IP address and port from the argument. 
  * Return 0 if failed,
  * 	  1 if addr read
  *        2 if addr and port read
@@ -302,7 +318,7 @@ int parse_addr(char *buf, u_int32_t *addr, u_int16_t *port)
 
 void usage_exit(char **argv) {
 	char *p = argv[0];
-	printf("ipvsadm  v1.2 1999/9/1\n"
+	printf("ipvsadm  v1.3 1999/9/8\n"
                "Usage:\n"
 	       "\t%s -A -[t|u] v.v.v.v:vport [-s scheduler] [-p]\n"
 	       "\t%s -D -[t|u] v.v.v.v:vport\n"
@@ -322,7 +338,7 @@ void usage_exit(char **argv) {
 	printf("\nOptions:\n"
 	       "\t protocol:	t :	tcp\n"
 	       "\t		u :	udp\n"
-	       "\t port:	p :	persistent port\n"
+	       "\t port:        p :     persistent port\n"
 	       "\t forwarding:	g :	gatewaying (routing) (default)\n"
 	       "\t		m :	masquerading\n"
 	       "\t		i :	ipip encapsulation (tunneling)\n"
@@ -345,17 +361,20 @@ void fail(int err, char *text) {
 void list_forwarding_exit(void)
 {
     char buffer[1024];
-
     FILE *handle;
+
     handle = fopen ("/proc/net/ip_masq/vs", "r");
     if (!handle) {
 	    printf ("Could not open /proc/net/ip_masq/vs\n");
 	    printf ("Are you sure that Virtual Server is supported by the kernel?\n");
 	    exit (1);
     }
+
     while (!feof (handle)) {
-	    if (fgets (buffer, sizeof(buffer), handle)) printf ("%s", buffer);
+	    if (fgets (buffer, sizeof(buffer), handle))
+                    printf ("%s", buffer);
     }
+
     fclose (handle);
     exit (0);
 }
