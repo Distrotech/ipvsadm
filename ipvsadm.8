@@ -9,8 +9,10 @@
 .\"     Changes:
 .\"       Horms            :  Updated to reflect recent change of ipvsadm
 .\"                        :  Style guidance taken from ipchains(8)
-.\"                        :  where appropriate.
+.\"                           where appropriate.
 .\"       Wensong Zhang    :  Added a short note about the defense strategies
+.\"       Horms            :  Tidy up some of the description and the
+.\"                           grammar in the -f and sysctl sections
 .\"
 .\"     This program is free software; you can redistribute it and/or modify
 .\"     it under the terms of the GNU General Public License as published by
@@ -151,8 +153,8 @@ Use a firewall-mark, an integer value greater than zero, to denote a
 virtual service instead of an address, port and protocol, UDP or
 TCP. The marking of packets with a firewall-mark is configured using
 the -m|--mark option to \fBipchains\fR(8). It can be used to build a
-virtual service assoicated to different IP addresses or port numbers,
-but sharing the same real server collection.
+virtual service assoicated with the same real servers, covering multiple
+IP addresss, port and protocol tripplets.
 .TP
 .B -s, --scheduler \fIscheduling-method\fP
 \fIscheduling-method\fP  Algorithm for allocating TCP connections and
@@ -279,24 +281,28 @@ ipchains -A forward -j MASQ -s 192.168.10.0/24 -d 0.0.0.0/0
 The Linux Virtual Server implements three defense strategies against
 some types of denial of service attack. The LVS host creates an entry
 for each connection in order to keep its state, and each entry
-occupies 128 bytes effective memory. The DoS attack to LVS is to
-increase entries as much as possible until it runs out of memory. The
-three defense strategies against the attack are to randomly drop some
-entries in the table, to drop 1/rate packets before forwarding them,
-to use secure tcp state transition table and short timeouts. The
-strategies are controlled by sysctl variables:
+occupies 128 bytes effective memory. LVS's vulnerability to a DoS
+attack lies in the potential to increase the number entries as much as
+possible until the LVS host runs out of memory. The three defense
+strategies against the attack are to randomly drop some entries in the
+table, to drop 1/rate packets before forwarding them and to use secure
+tcp state transition table and short timeouts. The strategies are
+controlled by sysctl variables:
 .sp
 /proc/sys/net/ipv4/vs/drop_entry
 /proc/sys/net/ipv4/vs/drop_packet
 /proc/sys/net/ipv4/vs/secure_tcp
 .PP
-Their valid values are from 0 to 3, 0 means that this strategy is
-always disabled, 1 and 2 mean automatic modes (when there is no enough
-available memory, the strategy is enabled and the variable is
-automatically set to 2, otherwise the strategy is disabled and the
-variable is set to 1), and 3 means that that the strategy is always
-enabled. The default values of those variables are 0. The available
-memory threshold and secure tcp timeouts can be tuned by sysctl too.
+The valid values are from 0 to 3 with a default of 0. 0 means that
+this strategy is always disabled. 1 and 2 mean automatic modes - when
+there is no enough available memory, the strategy is enabled and the
+variable is automatically set to 2, otherwise the strategy is disabled
+and the variable is set to 1. 3 means that that the strategy is always
+enabled. The available memory threshold and secure tcp timeouts can be
+tuned using the sysctl variables:
+.sp
+/proc/sys/net/ipv4/vs/amemthresh
+/proc/sys/net/ipv4/vs/timeout_*
 .SH FILES
 .I /proc/net/ip_masq/vs
 .br
