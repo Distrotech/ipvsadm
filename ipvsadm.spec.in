@@ -32,34 +32,24 @@ rm -rf $RPM_BUILD_ROOT
 mkdir -p ${RPM_BUILD_ROOT}/{sbin,%{_mandir}/man8,etc/rc.d/init.d}
 BUILD_ROOT=${RPM_BUILD_ROOT} MANDIR=${RPM_BUILD_ROOT}/%{_mandir}/man8 make install
 
-#File finding code thanks to Samuel Flory of VA Linux Systems
-cd ${RPM_BUILD_ROOT}
-# Directories
-find . -type d | sed '1,2d;s,^\.,\%attr(-\,root\,root) \%dir ,' \
-  > ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
-# Files
-find . -type f | sed "s,^\.\(.*\),%attr (-\,root\,root) \1," \
-  >> ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
-# Symbolic links
-find . -type l | sed 's,^\.,\%attr(-\,root\,root) ,' \
-  >> ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
-# compress the man pages
-if [ -x /usr/lib/rpm/brp-compress ] ; then
-	perl -pi -e 's/(.*man.*\.[0-9])/$1.gz/g' ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
-fi
-
 
 %clean
 rm -rf $RPM_BUILD_DIR/%{name}
 rm -rf $RPM_BUILD_ROOT
-rm ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 
 
-%files -f ../%{name}-%{version}-%{release}.files
+%files
+%defattr(-,root,root)
 %doc README
+%config /etc/rc.d/init.d/ipvsadm
+/sbin/*
+/usr/man/man*/*
 
 
 %changelog
+* Thu Dec 30 2000 Wensong Zhang <wensong@linuxvirtualserver.org>
+- update the %file section
+
 * Thu Dec 17 2000 Wensong Zhang <wensong@linuxvirtualserver.org>
 - Added a if-condition to keep both new or old rpm utility building
   the package happily.

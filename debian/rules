@@ -34,6 +34,10 @@ install: build
 
 	BUILD_ROOT=$(pwd)/debian/tmp make install
 
+	[ ! -d $(pwd)/debian/tmp/etc/init.d/ ] && \
+	  mkdir -p $(pwd)/debian/tmp/etc/init.d/
+	install -c -m 755 ipvsadm.sh $(pwd)/debian/tmp/etc/init.d/ipvsadm
+
 	dh_movefiles --source=debian/tmp
 
 binary-indep: build install

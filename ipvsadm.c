@@ -52,6 +52,7 @@
  *	  P.Copeland	      :   added some casts to stop gcc grumbling,
  *                                and made small tweeks to stop -pedantic
  *                                complaining.
+ *        Horms               :   added -v option
  *
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
@@ -167,6 +168,8 @@ int parse_netmask(char *buf, u_int32_t *addr);
 int parse_timeout(char *buf, unsigned *timeout);
 
 void usage_exit(const char *program, const int exit_status);
+void version_exit(int exit_status);
+void version(FILE *stream);
 void fail(int err, char *text);
 void check_ipvs_version(void);
 void list_vs(unsigned int options);
@@ -232,6 +235,8 @@ int parse_options(int argc, char **argv, int reading_stdin,
         {"delete-server", 'd', POPT_ARG_NONE, NULL, 'd'};
         struct poptOption help_option =
         {"help", 'h', POPT_ARG_NONE, NULL, 'h'};
+        struct poptOption version_option =
+        {"version", 'v', POPT_ARG_NONE, NULL, 'v'};
         struct poptOption read_stdin_option =
         {"restore", 'R', POPT_ARG_NONE, NULL, 'R'};
         struct poptOption write_stdout_option =
@@ -279,6 +284,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
 		edit_server_option,
 		delete_server_option,
 		help_option,
+		version_option,
 		read_stdin_option,
 		write_stdout_option,
 		NULL_option
@@ -390,6 +396,9 @@ int parse_options(int argc, char **argv, int reading_stdin,
 		break;
 	case 'h':
                 usage_exit(argv[0], 0);
+		break;
+	case 'v':
+                version_exit(0);
 		break;
         default:
                 usage_exit(argv[0], -1);
@@ -588,6 +597,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
         	{"edit-server", 0, 0, 'e'},
         	{"delete-server", 0, 0, 'd'},
         	{"help", 0, 0, 'h'},
+        	{"version", 0, 0, 'v'},
         	{"save", 0, 0, 'S'},
         	{"restore", 0, 0, 'R'},
         	{"tcp-service", 1, 0, 't'},
@@ -614,7 +624,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
 	/* Re-process the arguments each time options is called*/
 	optind = 1;
 
-	if ((cmd = getopt_long(argc, argv, "AEDCSRaedlLh",
+	if ((cmd = getopt_long(argc, argv, "AEDCSRaedlLhv",
                                long_options, NULL)) == EOF)
 		usage_exit(argv[0], -1);
 
@@ -654,6 +664,9 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 break;
 	case 'h':
                 usage_exit(argv[0], 0);
+		break;
+	case 'v':
+                version_exit(0);
 		break;
         case 'S': 
 		fprintf(stderr, 
@@ -1055,9 +1068,8 @@ void usage_exit(const char *program, const int exit_status) {
         else
                 stream = stdout;
 
+	version(stream);
         fprintf(stream,
-                "ipvsadm " IPVSADM_VERSION " (compiled with "
-                IPVS_OPTION_PROCESSING " and IPVS v%d.%d.%d)\n"
                 "Usage:\n"
                 "  %s -[A|E] -[t|u|f] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
                 "  %s -D -[t|u|f] service-address\n"
@@ -1070,7 +1082,6 @@ void usage_exit(const char *program, const int exit_status) {
                 "  %s -d -[t|u|f] service-address -[r|R] server-address\n"
                 "  %s -[L|l] [-n]\n"
                 "  %s -h\n\n",
-                NVERSION(IP_VS_VERSION_CODE),                     
 #ifdef HAVE_POPT
                 program, program,
 #endif
@@ -1122,6 +1133,28 @@ void usage_exit(const char *program, const int exit_status) {
 		);
         
         exit(exit_status);
+}
+
+
+void version_exit(const int exit_status) {
+        FILE *stream;
+
+        if (exit_status != 0)
+                stream = stderr;
+        else
+                stream = stdout;
+
+        version(stream);
+        
+        exit(exit_status);
+}
+
+
+void version(FILE *stream){
+        fprintf(stream,
+                "ipvsadm " IPVSADM_VERSION " (compiled with "
+                IPVS_OPTION_PROCESSING " and IPVS v%d.%d.%d)\n",
+		NVERSION(IP_VS_VERSION_CODE));
 }
 
 
@@ -1288,7 +1321,7 @@ void print_vsinfo(char *buf, unsigned int format)
                 free(dname);
         } else if (buf[0] == 'F') {
                 /* fwmark virtual service entry */
-                if ((n = sscanf(buf, "%s %X %s %s %ud %lX", protocol, 
+                if ((n = sscanf(buf, "%s %X %s %s %u %lX", protocol, 
                                 &fwmark, scheduler, flags, 
                                 &timeout, &temp2)) == -1)
                         exit(1);
@@ -1321,7 +1354,7 @@ void print_vsinfo(char *buf, unsigned int format)
                 /* TCP/UDP virtual service entry  */
                 fwmark=0;  /* Reset firewall mark to unused */
                 
-                if ((n = sscanf(buf, "%s %lX:%hX %s %s %ud %lX",
+                if ((n = sscanf(buf, "%s %lX:%hX %s %s %u %lX",
                                 protocol, &temp, &vport, scheduler,
                                 flags, &timeout, &temp2)) == -1)
                         exit(1);
