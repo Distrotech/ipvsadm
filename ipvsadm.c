@@ -56,6 +56,7 @@
 #include <linux/ip_fw.h>        /* For IP_FW_MASQ_CTL */
 #include <linux/ip_masq.h>      /* For specific masq defs */
 #include <net/ip_masq.h>
+#include <net/ip_vs.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -103,7 +104,7 @@ int main(int argc, char **argv)
                 case 'A':	
                         mc.m_cmd = IP_MASQ_CMD_ADD;
                         mc.m_target = IP_MASQ_TARGET_VS;
-                        optstr = "t:u:s:";
+                        optstr = "t:u:s:p";
                         break;
                 case 'E':	
                         mc.m_cmd = IP_MASQ_CMD_SET;
@@ -156,6 +157,9 @@ int main(int argc, char **argv)
                                                    &mc.u.vs_user.vport);
                                 if (pares != 2) fail(2, "illegal virtual server "
                                                      "address:port specified");
+                                break;
+                        case 'p':
+                                mc.u.vs_user.vs_flags = IP_VS_F_PERSISTENT;
                                 break;
                         case 'i':
                                 mc.u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
@@ -298,9 +302,9 @@ int parse_addr(char *buf, u_int32_t *addr, u_int16_t *port)
 
 void usage_exit(char **argv) {
 	char *p = argv[0];
-	printf("ipvsadm  v1.1 1999/7/1\n"
+	printf("ipvsadm  v1.2 1999/9/1\n"
                "Usage:\n"
-	       "\t%s -A -[t|u] v.v.v.v:vport [-s scheduler]\n"
+	       "\t%s -A -[t|u] v.v.v.v:vport [-s scheduler] [-p]\n"
 	       "\t%s -D -[t|u] v.v.v.v:vport\n"
 	       "\t%s -C\n"
 	       "\t%s -a -[t|u] v.v.v.v:vport -r d.d.d.d[:dport] [-g|-m|-i]"
@@ -318,6 +322,7 @@ void usage_exit(char **argv) {
 	printf("\nOptions:\n"
 	       "\t protocol:	t :	tcp\n"
 	       "\t		u :	udp\n"
+	       "\t port:	p :	persistent port\n"
 	       "\t forwarding:	g :	gatewaying (routing) (default)\n"
 	       "\t		m :	masquerading\n"
 	       "\t		i :	ipip encapsulation (tunneling)\n"
