@@ -42,6 +42,8 @@
  *        Horms               :   Specifying command and option options
  *                                (e.g. -Ln or -At) in one short option
  *                                with popt problem fixed.
+ *        Wensong Zhang       :   split the process_options and make
+ *                                two versions of parse_options.
  *
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
@@ -161,20 +163,17 @@ void fail(int err, char *text);
 void check_ipvs_version(void);
 void list_vs(unsigned int options);
 void print_vsinfo(char *buf, unsigned int format);
-int process_options(int argc, char **argv,
-                    int reading_stdin, unsigned int options);
+int process_options(int argc, char **argv, int reading_stdin);
 int str_is_digit(const char *str);
 
 
 int main(int argc, char **argv)
 {
-        unsigned int options = FMT_NONE;
-
         /*
          *      If no other arguement, list VS_PROC_FILE
          */
         if (argc == 1){
-                list_vs(options);
+                list_vs(FMT_NONE);
 		exit(0);
 	}
         
@@ -186,22 +185,19 @@ int main(int argc, char **argv)
         /*
          *	Process command line arguments
          */
-	return process_options(argc, argv, 0, options);
+	return process_options(argc, argv, 0);
 }
 
 
-int process_options(int argc, char **argv, int reading_stdin, 
-                    unsigned int options)
+#ifdef HAVE_POPT
+
+int parse_options(int argc, char **argv, int reading_stdin,
+                  struct ip_masq_ctl *mc, unsigned int *format)
 {
-        struct ip_masq_ctl mc;
-        int c;
-        int cmd; 
-        int parse;
+        int c, cmd, parse;
         int result=0;
-        int sockfd;
 	int forward_set=0;
 	int destination_set=0;
-#ifdef HAVE_POPT
         int read_stdin=0;
         int write_stdout=0;
 	dynamic_array_t *a;
@@ -209,57 +205,57 @@ int process_options(int argc, char **argv, int reading_stdin,
 	char *optarg=NULL;
 	
         struct poptOption add_service_option =
-                {"add-service", 'A', POPT_ARG_NONE, NULL, 'A'};
+        {"add-service", 'A', POPT_ARG_NONE, NULL, 'A'};
         struct poptOption edit_service_option =
-                {"edit-service", 'E', POPT_ARG_NONE, NULL, 'E'};
+        {"edit-service", 'E', POPT_ARG_NONE, NULL, 'E'};
         struct poptOption delete_service_option =
-                {"delete-service", 'D', POPT_ARG_NONE, NULL, 'D'};
+        {"delete-service", 'D', POPT_ARG_NONE, NULL, 'D'};
         struct poptOption clear_option =
-                {"clear", 'C', POPT_ARG_NONE, NULL, 'C'};
+        {"clear", 'C', POPT_ARG_NONE, NULL, 'C'};
         struct poptOption list_option =
-                {"list", 'L', POPT_ARG_NONE, NULL, 'L'};
+        {"list", 'L', POPT_ARG_NONE, NULL, 'L'};
         struct poptOption list2_option =
-                {"list", 'l', POPT_ARG_NONE, NULL, 'l'};
+        {"list", 'l', POPT_ARG_NONE, NULL, 'l'};
         struct poptOption add_server_option =
-                {"add-server", 'a', POPT_ARG_NONE, NULL, 'a'};
+        {"add-server", 'a', POPT_ARG_NONE, NULL, 'a'};
         struct poptOption edit_server_option =
-                {"edit-server", 'e', POPT_ARG_NONE, NULL, 'e'};
+        {"edit-server", 'e', POPT_ARG_NONE, NULL, 'e'};
         struct poptOption delete_server_option =
-                {"delete-server", 'd', POPT_ARG_NONE, NULL, 'd'};
+        {"delete-server", 'd', POPT_ARG_NONE, NULL, 'd'};
         struct poptOption help_option =
-                {"help", 'h', POPT_ARG_NONE, NULL, 'h'};
+        {"help", 'h', POPT_ARG_NONE, NULL, 'h'};
         struct poptOption read_stdin_option =
-                {"restore", 'R', POPT_ARG_NONE, NULL, 'R'};
+        {"restore", 'R', POPT_ARG_NONE, NULL, 'R'};
         struct poptOption write_stdout_option =
-                {"save", 'S', POPT_ARG_NONE, NULL, 'S'};
+        {"save", 'S', POPT_ARG_NONE, NULL, 'S'};
         struct poptOption tcp_service_option =
-                {"tcp-service", 't', POPT_ARG_STRING, &optarg, 't'};
+        {"tcp-service", 't', POPT_ARG_STRING, &optarg, 't'};
         struct poptOption udp_service_option =
-                {"udp-service", 'u', POPT_ARG_STRING, &optarg, 'u'};
+        {"udp-service", 'u', POPT_ARG_STRING, &optarg, 'u'};
         struct poptOption fwmark_service_option =
-                {"fwmark-service", 'f', POPT_ARG_STRING, &optarg, 'f'};
+        {"fwmark-service", 'f', POPT_ARG_STRING, &optarg, 'f'};
         struct poptOption scheduler_option =
-                {"scheduler", 's', POPT_ARG_STRING, &optarg, 's'};
+        {"scheduler", 's', POPT_ARG_STRING, &optarg, 's'};
         struct poptOption persistent_option =
-                {"persistent", 'p', POPT_ARG_NONE, NULL, 'p'};
+        {"persistent", 'p', POPT_ARG_NONE, NULL, 'p'};
         struct poptOption netmask_option =
-                {"netmask", 'M', POPT_ARG_STRING, &optarg, 'M'};
+        {"netmask", 'M', POPT_ARG_STRING, &optarg, 'M'};
         struct poptOption real_server_option =
-                {"real-server", 'r', POPT_ARG_STRING, &optarg, 'r'};
+        {"real-server", 'r', POPT_ARG_STRING, &optarg, 'r'};
         struct poptOption real_server2_option =
-                {"real-server", 'R', POPT_ARG_STRING, &optarg, 'R'};
+        {"real-server", 'R', POPT_ARG_STRING, &optarg, 'R'};
         struct poptOption masquerading_option =
-                {"masquerading", 'm', POPT_ARG_NONE, NULL, 'm'};
+        {"masquerading", 'm', POPT_ARG_NONE, NULL, 'm'};
         struct poptOption ipip_option =
-                {"ipip", 'i', POPT_ARG_NONE, NULL, 'i'};
+        {"ipip", 'i', POPT_ARG_NONE, NULL, 'i'};
         struct poptOption gatewaying_option =
-                {"gatewaying",'g', POPT_ARG_NONE, NULL, 'g'};
+        {"gatewaying",'g', POPT_ARG_NONE, NULL, 'g'};
         struct poptOption weight_option =
-                {"weight", 'w', POPT_ARG_STRING, &optarg, 'w'};
+        {"weight", 'w', POPT_ARG_STRING, &optarg, 'w'};
         struct poptOption numeric_option =
-                {"numeric", 'n', POPT_ARG_NONE, NULL, 'n'};
+        {"numeric", 'n', POPT_ARG_NONE, NULL, 'n'};
         struct poptOption NULL_option =
-                {NULL, 0, 0, NULL, 0};
+        {NULL, 0, 0, NULL, 0};
 
 	struct poptOption *options_sub=NULL;
 
@@ -339,7 +335,236 @@ int process_options(int argc, char **argv, int reading_stdin,
 
         if ((cmd = poptGetNextOpt(context)) < 0)
                 usage_exit(argv[0], -1);
+
+        switch (cmd) {
+        case 'A':	
+                mc->m_cmd = IP_MASQ_CMD_ADD;
+		options_sub = options_service;
+                break;
+        case 'E':	
+                mc->m_cmd = IP_MASQ_CMD_SET;
+		options_sub = options_service;
+                break;
+        case 'D':
+                mc->m_cmd = IP_MASQ_CMD_DEL;
+		options_sub = options_delete_service;
+                break;
+        case 'a':
+                mc->m_cmd = IP_MASQ_CMD_ADD_DEST;
+		options_sub = options_server;
+                break;
+        case 'e':
+                mc->m_cmd = IP_MASQ_CMD_SET_DEST;
+		options_sub = options_server;
+                break;
+        case 'd':
+                mc->m_cmd = IP_MASQ_CMD_DEL_DEST;
+                mc->m_target = IP_MASQ_TARGET_VS;
+		options_sub = options_delete_server;
+                break;
+        case 'C':
+                mc->m_cmd = IP_MASQ_CMD_FLUSH;
+		options_sub = options_NULL;
+                break;
+        case 'L':
+        case 'l':
+                mc->m_cmd = IP_MASQ_CMD_LIST;
+                options_sub = options_list;
+                break;
+	case 'R':
+		read_stdin = 1;
+		options_sub = options_NULL;
+		break;
+	case 'S':
+		write_stdout = 1;
+		options_sub = options_list;
+		break;
+	case 'h':
+                usage_exit(argv[0], 0);
+		break;
+        default:
+                usage_exit(argv[0], -1);
+        }
+
+	poptFreeContext(context);
+	context = poptGetContext("ipvsadm", argc, argv, options_sub, 0);
+
+	/* 
+	 * Mangle the first argument
+	 * The first option from this argument has been read,
+	 * but there may be others
+	 */
+	c = strlen(argv[1]);
+	if (c > 2) {
+                if(argv[1][1] != '-'){
+                        /* Suffle first option out of argument */
+                        memmove(argv[1]+1, argv[1]+2, c-2);   
+                        argv[1][c-1]='\0';
+                }
+        } else {
+                /* Skip argument */
+                poptGetNextOpt(context);
+        }
+
+        while ((c=poptGetNextOpt(context)) >= 0){
+                switch (c) {
+                case 't':
+                case 'u':
+                        if (mc->u.vs_user.vfwmark != 0)
+                                fail(2, "fwmark already specified");
+                        if (mc->u.vs_user.protocol != 0)
+                                fail(2, "protocol already specified");
+                        mc->u.vs_user.protocol =
+                                (c=='t' ? IPPROTO_TCP : IPPROTO_UDP);
+                        parse = parse_service(optarg,
+				              mc->u.vs_user.protocol,
+				              &mc->u.vs_user.vaddr, 
+				              &mc->u.vs_user.vport);
+                        if (!(parse & SERVICE_ADDR )) 
+				fail(2, "illegal virtual server "
+                                     "address[:port] specified");
+                        break;
+                case 'f':
+                        if (mc->u.vs_user.vfwmark != 0)
+                                fail(2, "fwmark already specified");
+                        if (mc->u.vs_user.protocol != 0)
+                                fail(2, "protocol already specified");
+                        /* 
+                         * Set prtocol to a sane values, even
+                         * though it is not used 
+                         */
+                        mc->u.vs_user.protocol = IPPROTO_TCP;
+                        /* 
+                         * Get the fwmark 
+                         */
+                        parse = parse_fwmark(optarg, &mc->u.vs_user.vfwmark);
+                        if (parse == 0 || mc->u.vs_user.vfwmark == 0 ) 
+				fail(2, "illegal virtual server "
+                                     "fwmark specified");
+                        break;
+                case 's':
+                        if (strlen(mc->m_tname) != 0)
+                                fail(2, "multiple scheduling modules specified");
+                        strncpy(mc->m_tname, optarg, IP_MASQ_TNAME_MAX);
+                        break;
+                case 'p':
+                        mc->u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
+                        break;
+                case 'M':
+                        parse = parse_netmask(optarg,
+                                              &mc->u.vs_user.netmask);
+                        if (parse != 1)
+                                fail(2, "illegal virtual server "
+                                     "persistent mask specified");
+                        break;
+                case 'r':
+                case 'R':
+                        if (destination_set)
+                                fail(2, "Destination already set");
+                        destination_set=1;
+                        parse = parse_service(optarg,
+                                              mc->u.vs_user.protocol,
+                                              &mc->u.vs_user.daddr, 
+                                              &mc->u.vs_user.dport);
+                        if (!(parse&SERVICE_ADDR)) 
+				fail(2, "illegal real server "
+                                     "address[:port] specified");
+                        /* copy vport to dport if none specified */
+                        if (parse == 1)
+                                mc->u.vs_user.dport = mc->u.vs_user.vport;
+                        break;
+                case 'i':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
+                        mc->u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
+                        break;
+                case 'g':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
+                        mc->u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
+                        break;
+                case 'm':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
+                        mc->u.vs_user.masq_flags = 0;
+                        break;
+                case 'w':
+                        if (mc->u.vs_user.weight != -1)
+                                fail(2, "multiple server weights specified");
+                        if ((mc->u.vs_user.weight=
+                             string_to_number(optarg,0,65535)) == -1)
+                                fail(2, "illegal weight specified");
+                        break;
+                case 'n':
+                        *format |= FMT_NUMERIC;
+                        break;
+                default:
+                        fail(2, "invalid option");
+                }
+        }
+
+	if (c < -1) {
+		/* an error occurred during option processing */
+		fprintf(stderr, "%s: %s\n",
+			poptBadOption(context, POPT_BADOPTION_NOALIAS),
+			poptStrerror(c));
+		poptFreeContext(context);
+		return -1;
+	}
+
+	if (read_stdin) {
+                /* avoid infinite loop */
+		if (reading_stdin != 0)
+                	usage_exit(argv[0], -1);
+
+		while ((a = config_stream_read(stdin, argv[0])) != NULL) {
+			int i;
+			if ((i = (int)dynamic_array_get_count(a)) > 1)
+				result = process_options
+                                        (i, 
+                                         (char **)dynamic_array_get_vector(a),
+                                         1);
+			dynamic_array_destroy(a, DESTROY_STR);
+		}
+		poptFreeContext(context);
+		exit(result);
+	}
+
+        if (write_stdout) {
+                *format |= FMT_RULE;
+                list_vs(*format);
+		poptFreeContext(context);
+                exit(0);
+        }
+        
+	/* 
+         * If popt is used then optional arguments (persistent timeout)
+	 * has to be handled last. This has the interesting
+	 * side effect that the first non-option argument will
+	 * be used as the timeout, regardless of its position
+	 * in the argument list
+	 */
+	if (mc->u.vs_user.vs_flags == IP_VS_SVC_F_PERSISTENT){
+		optarg=poptGetArg(context);
+       		parse = parse_timeout(optarg, &mc->u.vs_user.timeout);
+       		if (parse == 0)
+                        fail(2, "illegal timeout for persistent service");
+	}
+        poptFreeContext(context);
+        return 0;
+}
+
 #else
+
+int parse_options(int argc, char **argv, int reading_stdin,
+                  struct ip_masq_ctl *mc, unsigned int *format)
+{
+        int c, cmd, parse;
+	int forward_set=0;
+	int destination_set=0;
         char *optstr = "";
 
 	struct option long_options[] =
@@ -378,96 +603,43 @@ int process_options(int argc, char **argv, int reading_stdin,
 	optind = 1;
 
 	if ((cmd = getopt_long(argc, argv, "AEDCaedlLh",
-		long_options, NULL)) == EOF)
+                               long_options, NULL)) == EOF)
 		usage_exit(argv[0], -1);
-#endif
-
-        memset(&mc, 0, sizeof(struct ip_masq_ctl));
 
         switch (cmd) {
         case 'A':	
-                mc.m_cmd = IP_MASQ_CMD_ADD;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_service;
-#else
+                mc->m_cmd = IP_MASQ_CMD_ADD;
                 optstr = "t:u:f:s:M:p::";
-#endif
                 break;
         case 'E':	
-                mc.m_cmd = IP_MASQ_CMD_SET;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_service;
-#else
+                mc->m_cmd = IP_MASQ_CMD_SET;
                 optstr = "t:u:f:s:M:p::";
-#endif
                 break;
         case 'D':
-                mc.m_cmd = IP_MASQ_CMD_DEL;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_delete_service;
-#else
+                mc->m_cmd = IP_MASQ_CMD_DEL;
                 optstr = "t:u:f:";
-#endif
                 break;
         case 'a':
-                mc.m_cmd = IP_MASQ_CMD_ADD_DEST;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_server;
-#else
+                mc->m_cmd = IP_MASQ_CMD_ADD_DEST;
                 optstr = "t:u:f:w:r:R:gmi";
-#endif
                 break;
         case 'e':
-                mc.m_cmd = IP_MASQ_CMD_SET_DEST;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_server;
-#else
+                mc->m_cmd = IP_MASQ_CMD_SET_DEST;
                 optstr = "t:u:f:w:r:R:gmi";
-#endif
                 break;
         case 'd':
-                mc.m_cmd = IP_MASQ_CMD_DEL_DEST;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_delete_server;
-#else
+                mc->m_cmd = IP_MASQ_CMD_DEL_DEST;
                 optstr = "t:u:f:w:r:R:";
-#endif
                 break;
         case 'C':
-                mc.m_cmd = IP_MASQ_CMD_FLUSH;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_NULL;
-#else
+                mc->m_cmd = IP_MASQ_CMD_FLUSH;
                 optstr = "";
-#endif
                 break;
         case 'L':
         case 'l':
-                mc.m_cmd = IP_MASQ_CMD_LIST;
-                mc.m_target = IP_MASQ_TARGET_VS;
-#ifdef HAVE_POPT
-		options_sub=options_list;
-#else
+                mc->m_cmd = IP_MASQ_CMD_LIST;
                 optstr = "n";
-#endif
                 break;
-#ifdef HAVE_POPT
-	case 'R':
-		read_stdin=1;
-		options_sub=options_NULL;
-		break;
-	case 'S':
-		write_stdout=1;
-		options_sub=options_list;
-		break;
-#endif
 	case 'h':
                 usage_exit(argv[0], 0);
 		break;
@@ -475,111 +647,65 @@ int process_options(int argc, char **argv, int reading_stdin,
                 usage_exit(argv[0], -1);
         }
 
-        /*
-         * weight=0 is allowed, which means that server is quiesced.
-         */
-        mc.u.vs_user.weight = -1;
-        
-        /*
-         * Set direct routing as default forwarding method
-         */
-        mc.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
-
-        /*
-         * Set the default persistent granularity to /32 masking
-         */
-        mc.u.vs_user.netmask	= ((u_int32_t) 0xffffffff);
-
-	/* 
-	 * Set the fwmark to 0 (unused)
-	 */
-        mc.u.vs_user.vfwmark = 0;
-
-#ifdef HAVE_POPT
-	poptFreeContext(context);
-	context = poptGetContext("ipvsadm", argc, argv, options_sub, 0);
-
-	/* 
-	 * Mangle the first argument
-	 * The first option from this argument has been read,
-	 * but there may be others
-	 */
-	c = strlen(argv[1]);
-	if (c > 2) {
-                if(argv[1][1] != '-'){
-                        /* Suffle first option out of argument */
-                        memmove(argv[1]+1, argv[1]+2, c-2);   
-                        argv[1][c-1]='\0';
-                }
-        } else {
-                /* Skip argument */
-                poptGetNextOpt(context);
-        }
-
-        while ((c=poptGetNextOpt(context)) >= 0){
-#else
 	while ((c=getopt_long(argc, argv, optstr,
-		long_options, NULL)) != EOF) {
-#endif
+                              long_options, NULL)) != EOF) {
                 switch (c) {
                 case 't':
                 case 'u':
-                        if (mc.u.vs_user.vfwmark != 0)
+                        if (mc->u.vs_user.vfwmark != 0)
                                 fail(2, "fwmark already specified");
-                        if (mc.u.vs_user.protocol != 0)
+                        if (mc->u.vs_user.protocol != 0)
                                 fail(2, "protocol already specified");
-                        mc.u.vs_user.protocol =
+                        mc->u.vs_user.protocol =
                                 (c=='t' ? IPPROTO_TCP : IPPROTO_UDP);
                         parse = parse_service(optarg,
-				              mc.u.vs_user.protocol,
-				              &mc.u.vs_user.vaddr, 
-				              &mc.u.vs_user.vport);
+				              mc->u.vs_user.protocol,
+				              &mc->u.vs_user.vaddr, 
+				              &mc->u.vs_user.vport);
                         if (!(parse & SERVICE_ADDR )) 
 				fail(2, "illegal virtual server "
-                                        "address[:port] specified");
+                                     "address[:port] specified");
                         break;
                 case 'f':
-                        if (mc.u.vs_user.vfwmark != 0)
+                        if (mc->u.vs_user.vfwmark != 0)
                                 fail(2, "fwmark already specified");
-                        if (mc.u.vs_user.protocol != 0)
+                        if (mc->u.vs_user.protocol != 0)
                                 fail(2, "protocol already specified");
                         /* 
                          * Set prtocol to a sane values, even
                          * though it is not used 
                          */
-                        mc.u.vs_user.protocol = IPPROTO_TCP;
+                        mc->u.vs_user.protocol = IPPROTO_TCP;
                         /* 
                          * Get the fwmark 
                          */
-                        parse = parse_fwmark(optarg, &mc.u.vs_user.vfwmark);
-                        if (parse == 0 || mc.u.vs_user.vfwmark == 0 ) 
+                        parse = parse_fwmark(optarg, &mc->u.vs_user.vfwmark);
+                        if (parse == 0 || mc->u.vs_user.vfwmark == 0 ) 
 				fail(2, "illegal virtual server "
-                                        "fwmark specified");
+                                     "fwmark specified");
                         break;
                 case 's':
-                        if (strlen(mc.m_tname) != 0)
+                        if (strlen(mc->m_tname) != 0)
                                 fail(2, "multiple scheduling modules specified");
-                        strncpy(mc.m_tname, optarg, IP_MASQ_TNAME_MAX);
+                        strncpy(mc->m_tname, optarg, IP_MASQ_TNAME_MAX);
                         break;
                 case 'p':
-                        mc.u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
-#ifndef HAVE_POPT
+                        mc->u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
                         if (!optarg && optind < argc && argv[optind][0] != '-'
                             && argv[optind][0] != '!')
                                 optarg = argv[optind++];
                         parse = parse_timeout(optarg,
-                                              &mc.u.vs_user.timeout);
+                                              &mc->u.vs_user.timeout);
                         if (parse == 0)
                                 fail(2, "illegal timeout "
-                                        "for persistent service");
-#endif
+                                     "for persistent service");
                         break;
                 case 'M':
                         parse = parse_netmask(optarg,
-                                              &mc.u.vs_user.netmask);
+                                              &mc->u.vs_user.netmask);
                         if (parse != 1)
                                 fail(2, "illegal virtual server "
-                                        "persistent mask specified");
+                                     "persistent mask specified");
                         break;
                 case 'r':
                 case 'R':
@@ -587,157 +713,126 @@ int process_options(int argc, char **argv, int reading_stdin,
                                 fail(2, "Destination already set");
                         destination_set=1;
                         parse = parse_service(optarg,
-                                              mc.u.vs_user.protocol,
-                                              &mc.u.vs_user.daddr, 
-                                              &mc.u.vs_user.dport);
+                                              mc->u.vs_user.protocol,
+                                              &mc->u.vs_user.daddr, 
+                                              &mc->u.vs_user.dport);
                         if (!(parse&SERVICE_ADDR)) 
 				fail(2, "illegal real server "
-                                        "address[:port] specified");
+                                     "address[:port] specified");
                         /* copy vport to dport if none specified */
                         if (parse == 1)
-                                mc.u.vs_user.dport = mc.u.vs_user.vport;
+                                mc->u.vs_user.dport = mc->u.vs_user.vport;
                         break;
                 case 'i':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
 			forward_set=1;
-                        mc.u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
+                        mc->u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
                         break;
                 case 'g':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
 			forward_set=1;
-                        mc.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
+                        mc->u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
                         break;
                 case 'm':
 			if(forward_set)
                         	fail(2, "multiple forward mechanims set");
 			forward_set=1;
-                        mc.u.vs_user.masq_flags = 0;
+                        mc->u.vs_user.masq_flags = 0;
                         break;
                 case 'w':
-                        if (mc.u.vs_user.weight != -1)
+                        if (mc->u.vs_user.weight != -1)
                                 fail(2, "multiple server weights specified");
-                        if ((mc.u.vs_user.weight=
+                        if ((mc->u.vs_user.weight=
                              string_to_number(optarg,0,65535)) == -1)
                                 fail(2, "illegal weight specified");
                         break;
                 case 'n':
-                        options |= FMT_NUMERIC;
+                        *format |= FMT_NUMERIC;
                         break;
                 default:
                         fail(2, "invalid option");
                 }
         }
 
-#ifdef HAVE_POPT
-	if (c < -1) {
-		/* an error occurred during option processing */
-		fprintf(stderr, "%s: %s\n",
-			poptBadOption(context, POPT_BADOPTION_NOALIAS),
-			poptStrerror(c));
-		poptFreeContext(context);
-		return -1;
-	}
-
-	if (read_stdin) {
-                /* avoid infinite loop */
-		if (reading_stdin != 0)
-                	usage_exit(argv[0], -1);
-
-		while ((a = config_stream_read(stdin, argv[0])) != NULL) {
-			int i;
-			if ((i = (int)dynamic_array_get_count(a)) > 1)
-				result = process_options(i, 
-					(char **)dynamic_array_get_vector(a),
-					1, options);
-			dynamic_array_destroy(a, DESTROY_STR);
-		}
-		poptFreeContext(context);
-		return(result);
-	}
-
-        if (write_stdout) {
-                options |= FMT_RULE;
-                list_vs(options);
-		poptFreeContext(context);
-                return 0;
-        }
-        
-	/* 
-         * If popt is used then optional arguments (persistent timeout)
-	 * has to be handled last. This has the interesting
-	 * side effect that the first non-option argument will
-	 * be used as the timeout, regardless of its position
-	 * in the argument list
-	 */
-	if (mc.u.vs_user.vs_flags == IP_VS_SVC_F_PERSISTENT){
-		optarg=poptGetArg(context);
-       		parse = parse_timeout(optarg, &mc.u.vs_user.timeout);
-       		if (parse == 0)
-                        fail(2, "illegal timeout for persistent service");
-	}
-#else
         if (optind < argc)
                 fail(2, "unknown arguments found in command line");
-#endif
+        return 0;
+}
 
-        if (mc.m_target == IP_MASQ_TARGET_VS && mc.m_cmd == IP_MASQ_CMD_LIST) {
-                list_vs(options);
-#ifdef HAVE_POPT
-		poptFreeContext(context);
-#endif
-		return(0);
+#endif /* HAVE_POPT */
+
+
+int process_options(int argc, char **argv, int reading_stdin)
+{
+        struct ip_masq_ctl ctl;
+        int result=0;
+        int sockfd;
+        unsigned int format=FMT_NONE;
+
+        memset(&ctl, 0, sizeof(struct ip_masq_ctl));
+        ctl.m_target = IP_MASQ_TARGET_VS;
+        /* weight=0 is allowed, which means that server is quiesced */
+        ctl.u.vs_user.weight = -1;
+        /* Set direct routing as default forwarding method */
+        ctl.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
+        /* Set the default persistent granularity to /32 masking */
+        ctl.u.vs_user.netmask	= ((u_int32_t) 0xffffffff);
+
+        if (parse_options(argc, argv, reading_stdin, &ctl, &format))
+                return -1;
+
+        if (ctl.m_cmd == IP_MASQ_CMD_LIST) {
+                list_vs(format);
+		return 0;
 	}
 
-        if (mc.m_target == IP_MASQ_TARGET_VS &&
-            (mc.m_cmd == IP_MASQ_CMD_ADD || mc.m_cmd == IP_MASQ_CMD_SET)) {
+        if (ctl.m_cmd == IP_MASQ_CMD_ADD || ctl.m_cmd == IP_MASQ_CMD_SET) {
                 /*
                  * Make sure that port zero service is persistent
                  */
-                if (!mc.u.vs_user.vfwmark &&
-                    !mc.u.vs_user.vport &&
-                    (mc.u.vs_user.vs_flags != IP_VS_SVC_F_PERSISTENT))
+                if (!ctl.u.vs_user.vfwmark &&
+                    !ctl.u.vs_user.vport &&
+                    (ctl.u.vs_user.vs_flags != IP_VS_SVC_F_PERSISTENT))
                         fail(2, "Zero port specified "
                              "for non-persistent service");
 
                 /*
                  * Set the default scheduling algorithm if not specified
                  */
-                if (strlen(mc.m_tname) == 0)
-                        strcpy(mc.m_tname,DEF_SCHED);
+                if (strlen(ctl.m_tname) == 0)
+                        strcpy(ctl.m_tname,DEF_SCHED);
         }
 
         /* 
          * Make sure that a destination is specified as required
          * i.e. make sure that a -r accompanies a -[t|u|f]
          */
-        if (mc.m_target == IP_MASQ_TARGET_VS
-            && (mc.m_cmd == IP_MASQ_CMD_ADD_DEST
-                || mc.m_cmd == IP_MASQ_CMD_SET_DEST
-                || mc.m_cmd == IP_MASQ_CMD_DEL_DEST)
-            && !destination_set) {
+        if ((ctl.m_cmd == IP_MASQ_CMD_ADD_DEST
+             || ctl.m_cmd == IP_MASQ_CMD_SET_DEST
+             || ctl.m_cmd == IP_MASQ_CMD_DEL_DEST)
+            && !ctl.u.vs_user.daddr) {
                 fail(2, "No destination specified");
         }
 
-        if (mc.m_target == IP_MASQ_TARGET_VS
-            && (mc.m_cmd == IP_MASQ_CMD_ADD_DEST
-                || mc.m_cmd == IP_MASQ_CMD_SET_DEST)) {
+        if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST
+            || ctl.m_cmd == IP_MASQ_CMD_SET_DEST) {
                 /*
                  * Set the default weight 1 if not specified
                  */
-                if (mc.u.vs_user.weight == -1)
-                        mc.u.vs_user.weight = 1;
+                if (ctl.u.vs_user.weight == -1)
+                        ctl.u.vs_user.weight = 1;
 
                 /*
                  * The destination port must be equal to the service port
                  * if the IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
                  * Don't worry about this if fwmark is used.
                  */
-                if (!mc.u.vs_user.vfwmark &&
-                    (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL
-                     || mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
-                        mc.u.vs_user.dport = mc.u.vs_user.vport;
+                if (!ctl.u.vs_user.vfwmark &&
+                    (ctl.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL
+                     || ctl.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
+                        ctl.u.vs_user.dport = ctl.u.vs_user.vport;
         }
 
         sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
@@ -747,45 +842,45 @@ int process_options(int argc, char **argv, int reading_stdin,
         }
 
         result = setsockopt(sockfd, IPPROTO_IP, 
-                            IP_FW_MASQ_CTL, (char *)&mc, sizeof(mc));
+                            IP_FW_MASQ_CTL, (char *)&ctl, sizeof(ctl));
         if (result) {
                 perror("setsockopt failed");
 
                 /*
                  *    Print most common error messages
                  */
-                switch (cmd) {
-                case 'A':	
+                switch (ctl.m_cmd) {
+                case IP_MASQ_CMD_ADD:	
                         if (errno == EEXIST)
                                 printf("Service already exists\n");
                         else if (errno == ENOENT)
                                 printf("Scheduler not found: ip_vs_%s.o\n",
-                                       mc.m_tname);
+                                       ctl.m_tname);
                         break;
-                case 'E':
+                case IP_MASQ_CMD_SET:
                         if (errno==ESRCH)
                                 printf("No such service\n");
                         else if (errno == ENOENT)
                                 printf("Scheduler not found: ip_vs_%s.o\n",
-                                       mc.m_tname);
+                                       ctl.m_tname);
                         break;
-                case 'D':
+                case IP_MASQ_CMD_DEL:
                         if (errno==ESRCH)
                                 printf("No such service\n");
                         break;
-                case 'a':
+                case IP_MASQ_CMD_ADD_DEST:
                         if (errno == ESRCH)
                                 printf("Service not defined\n");
                         else if (errno == EEXIST)
                                 printf("Destination already exists\n");
                         break;
-                case 'e':
+                case IP_MASQ_CMD_SET_DEST:
                         if (errno==ESRCH)
                                 printf("Service not defined\n");
                         else if (errno == ENOENT)
                                 printf("No such destination\n");
                         break;
-                case 'd':
+                case IP_MASQ_CMD_DEL_DEST:
                         if (errno==ESRCH)
                                 printf("Service not defined\n");
                         else if (errno == ENOENT)
@@ -795,10 +890,6 @@ int process_options(int argc, char **argv, int reading_stdin,
         }
 
         close(sockfd);
-
-#ifdef HAVE_POPT
-	poptFreeContext(context);
-#endif
         return result;	
 }
 
