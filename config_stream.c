@@ -5,6 +5,11 @@
  *      Authors: Horms <horms@vergenet.net>
  *
  *      Released under the terms of the GNU GPL
+ *
+ *      ChangeLog
+ *      Horms         :   scanf Glibc under Red Hat 7 does not appear
+ *                        to return EOF when input ends. Fall through
+ *                        code has been added to handle this case correctly
  */
 
 #include "config_stream.h"
@@ -35,8 +40,6 @@ dynamic_array_t *config_stream_read (FILE *stream, const char *first_element){
   int flag;
   dynamic_array_t *a;
 
-  extern int errno;
-
   if((a=dynamic_array_create((size_t)0))==NULL){
     perror("config_file_read: dynamic_array_create");
     return(NULL);
@@ -64,6 +67,8 @@ dynamic_array_t *config_stream_read (FILE *stream, const char *first_element){
         c=fgetc(stream);
         switch(c){
 	  case EOF:
+            dynamic_array_destroy(a, DESTROY_STR);
+            return(NULL);
 	  case '\n':
 	    return(a);
           case '\t':

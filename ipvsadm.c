@@ -126,7 +126,7 @@
 #endif
 
 #define IPVSADM_VERSION_NO              "v" VERSION
-#define IPVSADM_VERSION_DATE            "2000/12/17"
+#define IPVSADM_VERSION_DATE            "2001/3/27"
 #define IPVSADM_VERSION                 IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
 
 #define MINIMUM_IPVS_VERSION_MAJOR      0
@@ -1071,16 +1071,16 @@ void usage_exit(const char *program, const int exit_status) {
 	version(stream);
         fprintf(stream,
                 "Usage:\n"
-                "  %s -[A|E] -[t|u|f] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
-                "  %s -D -[t|u|f] service-address\n"
+                "  %s -A|E -t|u|f service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
+                "  %s -D -t|u|f service-address\n"
                 "  %s -C\n"
 #ifdef HAVE_POPT
                 "  %s -R\n"
                 "  %s -S [-n]\n"
 #endif
-                "  %s -[a|e] -[t|u|f] service-address -[r|R] server-address [-g|-i|-m] [-w weight]\n"
-                "  %s -d -[t|u|f] service-address -[r|R] server-address\n"
-                "  %s -[L|l] [-n]\n"
+                "  %s -a|e -t|u|f service-address -r|R server-address [-g|-i|-m] [-w weight]\n"
+                "  %s -d -t|u|f service-address -r|R server-address\n"
+                "  %s -L|l [-n]\n"
                 "  %s -h\n\n",
 #ifdef HAVE_POPT
                 program, program,
@@ -1114,13 +1114,13 @@ void usage_exit(const char *program, const int exit_status) {
                 "  --tcp-service  -t service-address   service-address is host[:port]\n"
                 "  --udp-service  -u service-address   service-address is host[:port]\n"
                 "  --fwmark-service  -f fwmark         fwmark is an integer greater than zero\n"
-                "  --scheduler    -s <scheduler>       one of rr|wrr|lc|wlc|lblc|lblcr,\n"
+                "  --scheduler    -s scheduler         one of rr|wrr|lc|wlc|lblc|lblcr,\n"
                 "                                      the default scheduler is %s.\n",
 		DEF_SCHED);
 
         fprintf(stream,
                 "  --persistent   -p [timeout]         persistent service\n"
-                "  --netmask      -M [netmask]         persistent granularity mask\n"
+                "  --netmask      -M netmask           persistent granularity mask\n"
                 "  --real-server  -r|-R server-address server-address is host (and port)\n"
                 "  --gatewaying   -g                   gatewaying (direct routing) (default)\n"
                 );
@@ -1128,7 +1128,7 @@ void usage_exit(const char *program, const int exit_status) {
         fprintf(stream,
                 "  --ipip         -i                   ipip encapsulation (tunneling)\n"
                 "  --masquerading -m                   masquerading (NAT)\n"
-                "  --weight       -w <weight>          capacity of real server\n"
+                "  --weight       -w weight            capacity of real server\n"
                 "  --numeric      -n                   numeric output of addresses and ports\n"
 		);
         
@@ -1166,7 +1166,7 @@ void fail(int err, char *text) {
 
 void check_ipvs_version(void)
 {
-        static char buffer[1024];
+        static char buffer[128];
 	int major;
 	int minor;
 	int patch;
@@ -1208,7 +1208,7 @@ void check_ipvs_version(void)
 
 void list_vs(unsigned int format)
 {
-        static char buffer[1024];
+        static char buffer[128];
         FILE *handle;
         int i;
 
@@ -1229,7 +1229,7 @@ void list_vs(unsigned int format)
                         printf("%s", buffer);
         }
         if (fgets(buffer, sizeof(buffer), handle) && !(format & FMT_RULE))
-                printf("  -> RemoteAddress:Port          "
+                printf("  -> RemoteAddress:Port             "
                        "Forward Weight ActiveConn InActConn\n");
         
         /*
@@ -1315,7 +1315,7 @@ void print_vsinfo(char *buf, unsigned int format)
                                        dname, get_fwd_switch(fwd), weight);
                         }
                 } else {
-                        printf("  -> %-27s %-7s %-6d %-10d %-10d\n",
+                        printf("  -> %-30s %-7s %-6d %-10d %-10d\n",
                                dname , fwd, weight, activeconns, inactconns);
                 }
                 free(dname);

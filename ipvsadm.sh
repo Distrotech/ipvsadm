@@ -56,7 +56,7 @@ case "$1" in
     #  pre-existing rules.
     action "Clearing the current IPVS table:" ipvsadm -C
     echo -n "Applying IPVS configuration: "
-      grep -v "^#" $IPVSADM_CONFIG | ipvsadm-restore -p -f && \
+      grep -v "^#" $IPVSADM_CONFIG | ipvsadm-restore && \
       success "Applying IPVS configuration" || \
       failure "Applying IPVS configuration"
     echo

@@ -28,8 +28,6 @@
 dynamic_array_t *dynamic_array_create(size_t block_size){
   dynamic_array_t *a;
 
-  extern int errno;
-
   if((a=(dynamic_array_t *)malloc(sizeof(dynamic_array_t)))==NULL){
     return(NULL);
   }
@@ -93,8 +91,6 @@ dynamic_array_t *dynamic_array_add_element(
   void (*destroy_element)(void *s),
   void *(*duplicate_element)(const void *s)
 ){
-  extern int errno;
-
   if(a==NULL) return(NULL);
   if(e==NULL) return(a);
   if(a->count==a->allocated_size){

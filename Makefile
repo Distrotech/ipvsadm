@@ -44,11 +44,11 @@
 #
 
 NAME	= ipvsadm
-VERSION	= 1.14
+VERSION	= 1.15
 RELEASE	= 1
 
 CC	= gcc
-CFLAGS	= -Wall -Wunused -g -O2
+CFLAGS	= -Wall -Wunused -Wstrict-prototypes -g -O2
 SBIN    = $(BUILD_ROOT)/sbin
 MAN     = $(BUILD_ROOT)/usr/man/man8
 MKDIR   = mkdir
@@ -98,6 +98,8 @@ install:        ipvsadm
 		$(INSTALL) -m 0755 ipvsadm-restore $(SBIN)
 		if [ ! -d $(MAN) ]; then $(MKDIR) -p $(MAN); fi
 		$(INSTALL) -m 0644 ipvsadm.8 $(MAN)
+		$(INSTALL) -m 0644 ipvsadm-save.8 $(MAN)
+		$(INSTALL) -m 0644 ipvsadm-restore.8 $(MAN)
 		if [ -d $(INIT) ]; then \
 		  $(INSTALL) -m 0755 ipvsadm.sh $(INIT)/ipvsadm ;\
 		fi

@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------
 
-ipvsadm - Version 1.14 - 30th December 2000
+ipvsadm - Version 1.15 - 27th March 2001
 
 This is free software.  See below for details.
 
@@ -23,7 +23,12 @@ in the source directory.
 
 Install to your liking.  We suggest the following pathnames:
 	/sbin/ipvsadm
+	/sbin/ipvsadm-save
+	/sbin/ipvsadm-restore
 	/usr/man/man8/ipvsadm.8
+	/usr/man/man8/ipvsadm-save.8
+	/usr/man/man8/ipvsadm-restore.8
+	/etc/rc.d/init.d/ipvsadm
 This will be done automatically when calling
 	make install
 in the source directory.

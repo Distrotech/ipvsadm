@@ -1,7 +1,7 @@
 #!/bin/bash
-#      ipvsadm-save - Save IPVS rules
+#      ipvsadm-restore - Restore IPVS rules
 #
-#      A very simple wrapper to save IPVS rules
+#      A very simple wrapper to restore IPVS rules
 #      Inspired by ipchains-save.
 #
 #      Version: $Id$
@@ -11,17 +11,14 @@
 #      This file:
 #
 #      ChangeLog
+#      Horms               :        Clear IPVS rules before adding from STDIN
 #
 #
 
-# The path is fixed, this should probably be generated at
-# compile time but since the Makefile isn't autogenereated
-# having static values is ok. /sbin is the default location
-# for ipvsadm, /usr/sbin is where some distributions like
-# to put it
-
-PATH=/sbin:/usr/sbin
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
 # All the work is actually done in ipvsadm, horay
 
-ipvsadm -R
+INPUT="$(cat)"
+ipvsadm -C
+echo "$INPUT" | ipvsadm -R

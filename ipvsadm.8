@@ -36,16 +36,16 @@
 .\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 .\"
 .\"
-.TH IPVSADM 8 "20th October 2000" "LVS Administration" " Linux Administrator's Guide"
+.TH IPVSADM 8 "14th March 2001" "LVS Administration" " Linux Administrator's Guide"
 .UC 4
 .SH NAME
 ipvsadm \- Linux Virtual Server administration
 .SH SYNOPSIS
-.B ipvsadm -[A|E] -[t|u|f] \fIservice-address\fP [-s \fIscheduler\fP]
+.B ipvsadm -A|E -t|u|f \fIservice-address\fP [-s \fIscheduler\fP]
 .ti 15
 .B [-p [\fItimeout\fP]] [-M \fInetmask\fP]
 .br
-.B ipvsadm -D -[t|u|f] \fIservice-address\fP
+.B ipvsadm -D -t|u|f \fIservice-address\fP
 .br
 .B ipvsadm -C
 .br
@@ -53,13 +53,13 @@ ipvsadm \- Linux Virtual Server administration
 .br
 .B ipvsadm -S [-n]
 .br
-.B ipvsadm -[a|e] -[t|u|f] \fIservice-address\fP
+.B ipvsadm -a|e -t|u|f \fIservice-address\fP
 .ti 15
 .B -[r|R] \fIserver-address\fP [-g|-i|-m] [-w \fIweight\fP]
 .br
-.B ipvsadm -d -[t|u|f] \fIservice-address\fP -[r|R] \fIserver-address\fP
+.B ipvsadm -d -t|u|f \fIservice-address\fP -r|R \fIserver-address\fP
 .br
-.B ipvsadm -[L|l] [-n]
+.B ipvsadm -L|l [-n]
 .br
 .B ipvsadm -h
 .SH DESCRIPTION
