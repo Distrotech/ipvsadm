@@ -44,6 +44,10 @@
  *                                with popt problem fixed.
  *        Wensong Zhang       :   split the process_options and make
  *                                two versions of parse_options.
+ *        Horms               :   attempting to save or restore when
+ *        		      :   compiled against getopt_long now results
+ *        		          in an informative error message rather
+ *        		          than the usage information
  *
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
@@ -116,8 +120,8 @@
 #define IPVS_OPTION_PROCESSING          "getopt_long"
 #endif
 
-#define IPVSADM_VERSION_NO              "v1.11"
-#define IPVSADM_VERSION_DATE            "2000/06/16"
+#define IPVSADM_VERSION_NO              "v1.12"
+#define IPVSADM_VERSION_DATE            "2000/11/02"
 #define IPVSADM_VERSION         IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
 
 #define MINIMUM_IPVS_VERSION_MAJOR      0
@@ -578,6 +582,8 @@ int parse_options(int argc, char **argv, int reading_stdin,
         	{"edit-server", 0, 0, 'e'},
         	{"delete-server", 0, 0, 'd'},
         	{"help", 0, 0, 'h'},
+        	{"save", 0, 0, 'S'},
+        	{"restore", 0, 0, 'R'},
         	{"tcp-service", 1, 0, 't'},
         	{"udp-service", 1, 0, 'u'},
         	{"fwmark-service", 1, 0, 'f'},
@@ -602,7 +608,7 @@ int parse_options(int argc, char **argv, int reading_stdin,
 	/* Re-process the arguments each time options is called*/
 	optind = 1;
 
-	if ((cmd = getopt_long(argc, argv, "AEDCaedlLh",
+	if ((cmd = getopt_long(argc, argv, "AEDCSRaedlLh",
                                long_options, NULL)) == EOF)
 		usage_exit(argv[0], -1);
 
@@ -642,6 +648,20 @@ int parse_options(int argc, char **argv, int reading_stdin,
                 break;
 	case 'h':
                 usage_exit(argv[0], 0);
+		break;
+        case 'S': 
+		fprintf(stderr, 
+			"ipvsadm: Invalid option: -S or --save\n"
+			"  Saving of ipvsadm rules is only supported when\n"
+			"  ipvsadm is compiled against libpopt.\n");
+		exit(-1);
+		break;
+	case 'R':
+		fprintf(stderr, 
+			"ipvsadm: Invalid option: -R or --restore\n"
+			"Restoring ipvsadm rules is only supported when \n"
+			"ipvsadm is compiled against libpopt.\n");
+		exit(-1);
 		break;
         default:
                 usage_exit(argv[0], -1);

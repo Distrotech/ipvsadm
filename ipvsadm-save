@@ -1,0 +1,27 @@
+#!/bin/bash
+#      ipvsadm-save - Save IPVS rules
+#
+#      A very simple wrapper to save IPVS rules
+#      Inspired by ipchains-save.
+#
+#      Version: $Id$
+#
+#      Script Author: Horms <horms@vergenet.net>
+#
+#      This file:
+#
+#      ChangeLog
+#
+#
+
+# The path is fixed, this should probably be generated at
+# compile time but since the Makefile isn't autogenereated
+# having static values is ok. /sbin is the default location
+# for ipvsadm, /usr/sbin is where some distributions like
+# to put it
+
+PATH=/sbin:/usr/sbin
+
+# All the work is actually done in ipvsadm, horay
+
+ipvsadm -S

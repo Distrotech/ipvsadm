@@ -12,7 +12,6 @@ Source0: http://www.LinuxVirutalServer.org/software/ipvsadm-%{version}.tar.gz
 BuildRoot: /var/tmp/%name-%{PACKAGE_VERSION}-root
 Docdir: %{prefix}/doc
 Provides: %{name}-%{version}
-Obsoletes: ipvsadm <= 1.10
 Conflicts: piranha <= 0.4.14
 
 %description
@@ -30,7 +29,7 @@ CFLAGS="${RPM_OPT_FLAGS}" make
 
 %install
 rm -rf $RPM_BUILD_ROOT
-mkdir -p ${RPM_BUILD_ROOT}/{sbin,usr/man/man8}
+mkdir -p ${RPM_BUILD_ROOT}/{sbin,usr/man/man8,etc/rc.d/init.d}
 BUILD_ROOT=${RPM_BUILD_ROOT} make install
 
 #File finding code thanks to Samuel Flory of VA Linux Systems
@@ -39,7 +38,7 @@ cd ${RPM_BUILD_ROOT}
 find . -type d | sed '1,2d;s,^\.,\%attr(-\,root\,root) \%dir ,' \
   > ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 # Files
-find . -type f | sed "s,^\.\(.*\),%attr (-\,root\,root) \1*," \
+find . -type f | sed "s,^\.\(.*\),%attr (-\,root\,root) \1," \
   >> ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 # Symbolic links
 find . -type l | sed 's,^\.,\%attr(-\,root\,root) ,' \
@@ -57,6 +56,13 @@ rm ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 
 
 %changelog
+* Wed Aug 9 2000 Horms <horms@vergenet.net>
+- Removed Obseletes tag as ipvsadm is back in /sbin where it belongs 
+  as it is more or less analogous to both route and ipchains both of
+  which reside in /sbin.
+- Create directory to install init script into. Init scripts won't install
+  into build directory unless this is done
+
 * Thu Jul  6 2000 Wensong Zhang <wensong@linuxvirtualserver.org>
 - Changed to build rpms on the ipvsadm tar ball directly
 

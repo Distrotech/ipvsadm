@@ -21,21 +21,31 @@
 #                     :   Added autodetection of libpot
 #                     :   Added BUILD_ROOT support
 #      Wensong        :   Changed the OBJS according to detection
+#      Horms          :   Moved ipvsadm back into /sbin where it belongs
+#                         as it is more or less analogous to both route 
+#                         and ipchains both of which reside in /sbin.
+#                         Added rpm target whose only dependancy is 
+#                         the rpms target
 #
 
 NAME	= ipvsadm
-VERSION	= 1.11
-RELEASE	= 4
+VERSION	= 1.12
+RELEASE	= 1
 
 CC	= gcc
 CFLAGS	= -Wall -Wunused -g -O2
-SBIN    = $(BUILD_ROOT)/usr/sbin
+SBIN    = $(BUILD_ROOT)/sbin
 MAN     = $(BUILD_ROOT)/usr/man/man8
 MKDIR   = mkdir
 INSTALL = install
 INCLUDE = -I/usr/src/linux/include
 LIB_SEARCH = /lib /usr/lib /usr/local/lib
 
+# Where to install INIT scripts
+# Will only install files here if these directories already exist
+# as if the directories don't exist then the system is unlikely to
+# use the files
+INIT = $(BUILD_ROOT)/etc/rc.d/init.d
 
 #####################################
 # No servicable parts below this line
@@ -63,15 +73,19 @@ DEFINES = $(POPT_DEFINE)
 all:            ipvsadm
 
 ipvsadm:	$(OBJS)
-		echo $(LIBS)
 		$(CC) $(CFLAGS) -o ipvsadm $(OBJS) $(LIBS)
 
 install:        ipvsadm
 		strip ipvsadm
 		if [ ! -d $(SBIN) ]; then $(MKDIR) -p $(SBIN); fi
 		$(INSTALL) -m 0755 ipvsadm $(SBIN)
+		$(INSTALL) -m 0755 ipvsadm-save $(SBIN)
+		$(INSTALL) -m 0755 ipvsadm-restore $(SBIN)
 		if [ ! -d $(MAN) ]; then $(MKDIR) -p $(MAN); fi
 		$(INSTALL) -m 0644 ipvsadm.8 $(MAN)
+		if [ -d $(INIT) ]; then \
+		  $(INSTALL) -m 0755 ipvsadm.sh $(INIT)/ipvsadm ;\
+		fi
 
 clean:
 		rm -f ipvsadm *.o core *~ $(NAME).spec \
@@ -86,6 +100,8 @@ dist:		clean
 			--exclude $(NAME)-$(VERSION).tar.gz \
 			ipvsadm ; \
 			mv $(NAME)-$(VERSION).tar.gz ipvsadm )
+
+rpm:		rpms
 
 rpms:		dist
 		cp $(NAME)-$(VERSION).tar.gz /usr/src/redhat/SOURCES/
