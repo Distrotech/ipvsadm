@@ -23,6 +23,14 @@
  *	  Lars Marowsky-Brée  :   added persistence granularity support
  *        Julian Anastasov    :   fixed the (null) print for unknown services
  *        Wensong Zhang       :   added the port_to_anyname function
+ *        Horms               :   added option to read commands from stdin
+ *        Horms               :   modified usage function so it prints to 
+ *                            :   stdout if an exit value of 0 is used and 
+ *                            :   stdout otherwise. Program is then terminated
+ *                            :   with the supplied exit value.
+ *        Horms               :   updated manpage and usage funtion so
+ *                            :   the reflect the options available
+ *        Wensong Zhang       :   added option to write rules to stdout
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
@@ -80,12 +88,22 @@
 #include <net/ip_masq.h>
 #include <net/ip_vs.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifdef HAVE_POPT
+#include "popt.h"
+#include "config_stream.h"
+#endif
+
 /* default scheduler */
 #define DEF_SCHED	"wlc"
 
 /* printing format flags */
 #define FMT_NONE	0x0000
 #define FMT_NUMERIC	0x0001
+#define FMT_RULE	0x0002
 
 int string_to_number(const char *s, int min, int max);
 int host_to_addr(const char *name, struct in_addr *addr);
@@ -94,111 +112,315 @@ char * addr_to_anyname(struct in_addr *addr);
 int service_to_port(const char *name, unsigned short proto);
 char * port_to_service(int port, unsigned short proto);
 char * port_to_anyname(int port, unsigned short proto);
+char * addrport_to_anyname(struct in_addr *addr, int port,
+                           unsigned short proto, unsigned int format);
 
 int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port);
 int parse_netmask(char *buf, u_int32_t *addr);
 int parse_timeout(char *buf, unsigned *timeout);
 
-void usage_exit(char *program);
+void usage_exit(const char *program, const int exit_status);
 void fail(int err, char *text);
-void list_vs_exit(unsigned int options);
+void list_vs(unsigned int options);
 void print_vsinfo(char *buf, unsigned int format);
 
-static struct option long_options[] =
-{
-        {"add-service", 0, 0, 'A'},
-        {"edit-service", 0, 0, 'E'},
-        {"delete-service", 0, 0, 'D'},
-        {"clear", 0, 0, 'C'},
-        {"list", 0, 0, 'L'},
-        {"add-server", 0, 0, 'a'},
-        {"edit-server", 0, 0, 'e'},
-        {"delete-server", 0, 0, 'd'},
-        {"help", 0, 0, 'h'},
-        {"tcp-service", 1, 0, 't'},
-        {"udp-service", 1, 0, 'u'},
-        {"scheduler", 1, 0, 's'},
-        {"persistent", 2, 0, 'p'},
-        {"real-server", 1, 0, 'r'},
-        {"masquerading", 0, 0, 'm'},
-        {"netmask", 1, 0, 'M'},
-        {"ipip", 0, 0, 'i'},
-        {"gatewaying", 0, 0, 'g'},
-        {"weight", 1, 0, 'w'},
-        {"numeric", 0, 0, 'n'},
-        {0, 0, 0, 0}
-};
+int process_options(int argc, char **argv, int reading_stdin,
+                    unsigned int options);
 
 
 int main(int argc, char **argv)
 {
-        struct ip_masq_ctl mc;
-        int cmd, c;
-        int parse;
-        char *optstr = "";
-        int result;
-        int sockfd;
         unsigned int options = FMT_NONE;
 
         /*
          *   If no other arguement, list /proc/net/ip_masq/vs
          */
-        if (argc == 1)
-                list_vs_exit(options);
-        
-        memset(&mc, 0, sizeof(struct ip_masq_ctl));
+        if (argc == 1){
+                list_vs(options);
+		exit(0);
+	}
         
         /*
-         *	Want user virtual server control
+         *	Process command line arguments
          */
-        if ((cmd = getopt_long(argc, argv, "AEDCaedlLh",
-                               long_options, NULL)) == EOF) 
-                usage_exit(argv[0]);
+	return process_options(argc, argv, 0, options);
+}
+
+
+int process_options(int argc, char **argv, int reading_stdin, 
+                    unsigned int options)
+{
+        struct ip_masq_ctl mc;
+        int cmd, c;
+        int parse;
+        int result=0;
+        int sockfd;
+	int forward_set=0;
+#ifdef HAVE_POPT
+        int read_stdin=0;
+        int write_stdout=0;
+	dynamic_array_t *a;
+	poptContext context;
+	char *optarg=NULL;
+	
+        struct poptOption add_service_option =
+                {"add-service", 'A', POPT_ARG_NONE, NULL, 'A'};
+        struct poptOption edit_service_option =
+                {"edit-service", 'E', POPT_ARG_NONE, NULL, 'E'};
+        struct poptOption delete_service_option =
+                {"delete-service", 'D', POPT_ARG_NONE, NULL, 'D'};
+        struct poptOption clear_option =
+                {"clear", 'C', POPT_ARG_NONE, NULL, 'C'};
+        struct poptOption list_option =
+                {"list", 'L', POPT_ARG_NONE, NULL, 'L'};
+        struct poptOption list2_option =
+                {"list", 'l', POPT_ARG_NONE, NULL, 'l'};
+        struct poptOption add_server_option =
+                {"add-server", 'a', POPT_ARG_NONE, NULL, 'a'};
+        struct poptOption edit_server_option =
+                {"edit-server", 'e', POPT_ARG_NONE, NULL, 'e'};
+        struct poptOption delete_server_option =
+                {"delete-server", 'd', POPT_ARG_NONE, NULL, 'd'};
+        struct poptOption help_option =
+                {"help", 'h', POPT_ARG_NONE, NULL, 'h'};
+        struct poptOption read_stdin_option =
+                {"restore", 'R', POPT_ARG_NONE, NULL, 'R'};
+        struct poptOption write_stdout_option =
+                {"save", 'S', POPT_ARG_NONE, NULL, 'S'};
+        struct poptOption tcp_service_option =
+                {"tcp-service", 't', POPT_ARG_STRING, &optarg, 't'};
+        struct poptOption udp_service_option =
+                {"udp-service", 'u', POPT_ARG_STRING, &optarg, 'u'};
+        struct poptOption scheduler_option =
+                {"scheduler", 's', POPT_ARG_STRING, &optarg, 's'};
+        struct poptOption persistent_option =
+                {"persistent", 'p', POPT_ARG_NONE, NULL, 'p'};
+        struct poptOption netmask_option =
+                {"netmask", 'M', POPT_ARG_STRING, &optarg, 'M'};
+        struct poptOption real_server_option =
+                {"real-server", 'r', POPT_ARG_STRING, &optarg, 'r'};
+        struct poptOption real_server2_option =
+                {"real-server", 'R', POPT_ARG_STRING, &optarg, 'R'};
+        struct poptOption masquerading_option =
+                {"masquerading", 'm', POPT_ARG_NONE, NULL, 'm'};
+        struct poptOption ipip_option =
+                {"ipip", 'i', POPT_ARG_NONE, NULL, 'i'};
+        struct poptOption gatewaying_option =
+                {"gatewaying",'g', POPT_ARG_NONE, NULL, 'g'};
+        struct poptOption weight_option =
+                {"weight", 'w', POPT_ARG_STRING, &optarg, 'w'};
+        struct poptOption numeric_option =
+                {"numeric", 'n', POPT_ARG_NONE, NULL, 'n'};
+        struct poptOption NULL_option =
+                {NULL, 0, 0, NULL, 0};
+
+	struct poptOption *options_sub=NULL;
+
+	struct poptOption options_main[] =
+	{
+		add_service_option,
+		edit_service_option,
+		delete_service_option,
+		clear_option,
+		list_option,
+		list2_option,
+		add_server_option,
+		edit_server_option,
+		delete_server_option,
+		help_option,
+		read_stdin_option,
+		write_stdout_option,
+		NULL_option
+	};
+		
+	struct poptOption options_delete_service[] =
+	{
+		tcp_service_option,
+		udp_service_option,
+		NULL_option
+	};
+
+	struct poptOption options_service[] =
+	{
+		tcp_service_option,
+		udp_service_option,
+		scheduler_option,
+		persistent_option,
+		netmask_option,
+		NULL_option
+	};
+
+	struct poptOption options_delete_server[] =
+	{
+		tcp_service_option,
+		udp_service_option,
+		weight_option,
+		real_server_option,
+		real_server2_option,
+		NULL_option
+	};
+
+	struct poptOption options_server[] =
+	{
+		tcp_service_option,
+		udp_service_option,
+		weight_option,
+		real_server_option,
+		real_server2_option,
+		gatewaying_option,
+		masquerading_option,
+		ipip_option,
+		NULL_option
+	};
+
+	struct poptOption options_list[] =
+	{
+        	numeric_option,
+		NULL_option
+	};
+
+	struct poptOption options_NULL[] =
+	{
+		NULL_option
+	};
+
+	context= poptGetContext("ipvsadm", argc, argv, options_main, 0);
+
+        if ((cmd = poptGetNextOpt(context)) < 0)
+                usage_exit(argv[0], -1);
+#else
+        char *optstr = "";
+
+	struct option long_options[] =
+	{
+        	{"add-service", 0, 0, 'A'},
+        	{"edit-service", 0, 0, 'E'},
+        	{"delete-service", 0, 0, 'D'},
+        	{"clear", 0, 0, 'C'},
+        	{"list", 0, 0, 'L'},
+        	{"add-server", 0, 0, 'a'},
+        	{"edit-server", 0, 0, 'e'},
+        	{"delete-server", 0, 0, 'd'},
+        	{"help", 0, 0, 'h'},
+        	{"tcp-service", 1, 0, 't'},
+        	{"udp-service", 1, 0, 'u'},
+        	{"scheduler", 1, 0, 's'},
+        	{"persistent", 2, 0, 'p'},
+        	{"real-server", 1, 0, 'r'},
+        	{"masquerading", 0, 0, 'm'},
+        	{"netmask", 1, 0, 'M'},
+        	{"ipip", 0, 0, 'i'},
+        	{"gatewaying", 0, 0, 'g'},
+        	{"weight", 1, 0, 'w'},
+        	{"numeric", 0, 0, 'n'},
+        	{"help", 0, 0, 'h'},
+        	{0, 0, 0, 0}
+	};
+
+	extern char *optarg;
+	extern int optind;
+	extern int opterr;
+	extern int optopt;
+
+	/* Re-process the arguments each time options is called*/
+	optind = 1;
+
+	if ((cmd = getopt_long(argc, argv, "AEDCaedlLh",
+		long_options, NULL)) == EOF)
+		usage_exit(argv[0], -1);
+#endif
+
+        memset(&mc, 0, sizeof(struct ip_masq_ctl));
 
         switch (cmd) {
         case 'A':	
                 mc.m_cmd = IP_MASQ_CMD_ADD;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_service;
+#else
                 optstr = "t:u:s:M:p::";
+#endif
                 break;
         case 'E':	
                 mc.m_cmd = IP_MASQ_CMD_SET;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_service;
+#else
                 optstr = "t:u:s:M:p::";
+#endif
                 break;
         case 'D':
                 mc.m_cmd = IP_MASQ_CMD_DEL;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_delete_service;
+#else
                 optstr = "t:u:";
+#endif
                 break;
         case 'a':
                 mc.m_cmd = IP_MASQ_CMD_ADD_DEST;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_server;
+#else
                 optstr = "t:u:w:r:R:gmi";
+#endif
                 break;
         case 'e':
                 mc.m_cmd = IP_MASQ_CMD_SET_DEST;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_server;
+#else
                 optstr = "t:u:w:r:R:gmi";
+#endif
                 break;
         case 'd':
                 mc.m_cmd = IP_MASQ_CMD_DEL_DEST;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_delete_server;
+#else
                 optstr = "t:u:w:r:R:";
+#endif
                 break;
         case 'C':
                 mc.m_cmd = IP_MASQ_CMD_FLUSH;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_NULL;
+#else
                 optstr = "";
+#endif
                 break;
         case 'L':
         case 'l':
                 mc.m_cmd = IP_MASQ_CMD_LIST;
                 mc.m_target = IP_MASQ_TARGET_VS;
+#ifdef HAVE_POPT
+		options_sub=options_list;
+#else
                 optstr = "n";
+#endif
                 break;
+#ifdef HAVE_POPT
+	case 'R':
+		read_stdin=1;
+		options_sub=options_NULL;
+		break;
+	case 'S':
+		write_stdout=1;
+		options_sub=options_list;
+		break;
+#endif
+	case 'h':
+                usage_exit(argv[0], 0);
+		break;
         default:
-                usage_exit(argv[0]);
+                usage_exit(argv[0], -1);
         }
 
         /*
@@ -216,8 +438,18 @@ int main(int argc, char **argv)
          */
         mc.u.vs_user.netmask	= ((unsigned long int) 0xffffffff);
 
-        while ((c=getopt_long(argc, argv, optstr,
-                              long_options, NULL)) != EOF) {
+#ifdef HAVE_POPT
+	poptFreeContext(context);
+	context = poptGetContext("ipvsadm", argc, argv, options_sub, 0);
+
+	/* Discard the first argumet, which we have already paresed*/
+        poptGetNextOpt(context);
+
+        while ((c=poptGetNextOpt(context)) >= 0){
+#else
+	while ((c=getopt_long(argc, argv, optstr,
+		long_options, NULL)) != EOF) {
+#endif
                 switch (c) {
                 case 't':
                 case 'u':
@@ -225,10 +457,11 @@ int main(int argc, char **argv)
                                 fail(2, "protocol already specified");
                         mc.u.vs_user.protocol =
                                 (c=='t' ? IPPROTO_TCP : IPPROTO_UDP);
-                        parse = parse_service(optarg,
-                                              mc.u.vs_user.protocol,
-                                              &mc.u.vs_user.vaddr, 
-                                              &mc.u.vs_user.vport);
+                        parse = parse_service(
+						optarg,
+						mc.u.vs_user.protocol,
+						&mc.u.vs_user.vaddr, 
+						&mc.u.vs_user.vport);
                         if (parse != 2) fail(2, "illegal virtual server "
                                              "address:port specified");
                         break;
@@ -239,13 +472,15 @@ int main(int argc, char **argv)
                         break;
                 case 'p':
                         mc.u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
-                        if (!optarg && optind < argc && argv[optind][0] != '-'
-                            && argv[optind][0] != '!')
+#ifndef HAVE_POPT
+                        if (!optarg && optind < argc &&
+                            argv[optind][0] != '-' && argv[optind][0] != '!')
                                 optarg = argv[optind++];
                         parse = parse_timeout(optarg,
                                               &mc.u.vs_user.timeout);
                         if (parse == 0) fail(2, "illegal timeout "
                                              "for persistent service");
+#endif
                         break;
                 case 'M':
                         parse = parse_netmask(optarg,
@@ -266,12 +501,21 @@ int main(int argc, char **argv)
                                 mc.u.vs_user.dport = mc.u.vs_user.vport;
                         break;
                 case 'i':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
                         mc.u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
                         break;
                 case 'g':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
                         mc.u.vs_user.masq_flags = IP_MASQ_F_VS_DROUTE;
                         break;
                 case 'm':
+			if(forward_set)
+                        	fail(2, "multiple forward mechanims set");
+			forward_set=1;
                         mc.u.vs_user.masq_flags = 0;
                         break;
                 case 'w':
@@ -289,11 +533,64 @@ int main(int argc, char **argv)
                 }
         }
 
+#ifdef HAVE_POPT
+	if (c < -1) {
+		/* an error occurred during option processing */
+		fprintf(stderr, "%s: %s\n",
+			poptBadOption(context, POPT_BADOPTION_NOALIAS),
+			poptStrerror(c));
+		poptFreeContext(context);
+		return -1;
+	}
+
+	if (read_stdin) {
+                /* avoid infinite loop */
+		if (reading_stdin != 0)
+                	usage_exit(argv[0], -1);
+
+		while ((a = config_stream_read(stdin, argv[0])) != NULL) {
+			int i;
+			if ((i = (int)dynamic_array_get_count(a)) > 1)
+				result = process_options(i, 
+					(char **)dynamic_array_get_vector(a),
+					1, options);
+			dynamic_array_destroy(a, DESTROY_STR);
+		}
+		poptFreeContext(context);
+		return(result);
+	}
+
+        if (write_stdout) {
+                options |= FMT_RULE;
+                list_vs(options);
+		poptFreeContext(context);
+                return 0;
+        }
+        
+	/* If popt is used then optional arguments (persistent timeout)
+	   has to be handled last. This has the interesting
+	   side effect that the first non-option argument will
+	   be used as the timeout, regardless of its position
+	   in the argument list
+	 */
+	if (mc.u.vs_user.vs_flags == IP_VS_SVC_F_PERSISTENT){
+		optarg=poptGetArg(context);
+       		parse = parse_timeout(optarg, &mc.u.vs_user.timeout);
+       		if (parse == 0) fail(2, "illegal timeout " 
+			"for persistent service");
+	}
+#else
         if (optind < argc)
                 fail(2, "unknown arguments found in command line");
+#endif
 
-        if (mc.m_target == IP_MASQ_TARGET_VS && mc.m_cmd == IP_MASQ_CMD_LIST)
-                list_vs_exit(options);
+        if (mc.m_target == IP_MASQ_TARGET_VS && mc.m_cmd == IP_MASQ_CMD_LIST) {
+                list_vs(options);
+#ifdef HAVE_POPT
+		poptFreeContext(context);
+#endif
+		return(0);
+	}
 
         if (mc.m_target == IP_MASQ_TARGET_VS &&
             (mc.m_cmd == IP_MASQ_CMD_ADD || mc.m_cmd == IP_MASQ_CMD_SET)) {
@@ -314,8 +611,8 @@ int main(int argc, char **argv)
                         mc.u.vs_user.weight = 1;
 
                 /*
-                 * The destination port must be equal to the service port if the
-                 * IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
+                 * The destination port must be equal to the service port
+                 * if the IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
                  */
                 if ((mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL)
                     || (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
@@ -375,6 +672,12 @@ int main(int argc, char **argv)
                         break;
                 }
         }
+
+        close(sockfd);
+
+#ifdef HAVE_POPT
+	poptFreeContext(context);
+#endif
         return result;	
 }
 
@@ -405,6 +708,9 @@ int parse_netmask(char *buf, u_int32_t *addr)
 {
         struct in_addr inaddr;
 
+	if(buf==NULL)
+		return 0;
+        
         if (inet_aton(buf, &inaddr) != 0)
                 *addr = inaddr.s_addr;
         else if (host_to_addr(buf, &inaddr) != -1)
@@ -426,6 +732,9 @@ int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port)
         char *pp;
         long prt;
 	struct in_addr inaddr;
+
+	if(buf==NULL)
+		return 0;
         
         pp = strchr(buf,':');
         if (pp) *pp = '\0';
@@ -473,15 +782,36 @@ int parse_timeout(char *buf, unsigned *timeout)
 }
 
 
-void usage_exit(char *program) {
-        printf("ipvsadm  v1.7 1999/11/28\n"
-               "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]] [-M [netmask]]\n"
-               "       %s -D -[t|u] service-address\n"
-               "       %s -C\n"
-               "       %s -[a|e] -[t|u] service-address -r server-address [options]\n"
-               "       %s -d -[t|u] service-address -r server-address\n"
-               "       %s -[L|l] [-n]\n\n",
-               program, program, program, program, program, program);
+void usage_exit(const char *program, const int exit_status) {
+        FILE *stream;
+
+	if (exit_status != 0)
+		stream = stderr;
+	else
+		stream = stdout;
+
+        fprintf(stream,
+                "ipvsadm  v1.8 2000/03/13"
+#ifdef HAVE_POPT
+                " (popt)\n"
+#else
+                " (getopt_long)\n"
+#endif
+                "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
+                "       %s -D -[t|u] service-address\n"
+                "       %s -C\n"
+#ifdef HAVE_POPT
+                "       %s -R\n"
+                "       %s -S [-n]\n"
+#endif
+                "       %s -[a|e] -[t|u] service-address -[r|R] server-address [-g|-i|-m] [-w weight]\n"
+                "       %s -d -[t|u] service-address -[r|R] server-address\n"
+                "       %s -[L|l] [-n]\n"
+                "       %s -h\n\n",
+#ifdef HAVE_POPT
+                program, program,
+#endif
+                program, program, program, program, program, program, program);
         
         printf("Commands:\n"
                "Either long or short options are allowed.\n"
@@ -489,27 +819,34 @@ void usage_exit(char *program) {
                "  --edit-service    -E        edit virtual service with options\n"
                "  --delete-service  -D	      delete virtual service\n"
                "  --clear           -C        clear the whole table\n"
+#ifdef HAVE_POPT
+               "  --restore         -R	      restore rules from stdin\n"
+               "  --save            -S	      save rules to stdout\n"
+#endif
                "  --add-server      -a        add real server with options\n"
                "  --edit-server     -e        edit real server with options\n"
                "  --delete-server   -d        delete real server\n"
-               "  --list            -L	      list the table\n\n");
+               "  --list            -L|-l     list the table\n"
+               "  --help            -h	      display this help message\n\n"
+               );
         
-        printf("Options:\n"
-               "  --tcp-service  -t service-address  service-address is host and port\n"
-               "  --udp-service  -u service-address  service-address is host and port\n"
-               "  --scheduler    -s <scheduler>      It can be rr|wrr|lc|wlc,\n"
-               "                                     the default scheduler is %s.\n"
-               "  --persistent   -p [timeout]        persistent port\n"
-               "  --netmask      -M [netmask]        persistent granularity mask\n"
-               "  --real-server  -r server-address   server-address is host (and port)\n"
-               "  --masquerading -m                  masquerading (NAT)\n"
-               "  --ipip         -i                  ipip encapsulation (tunneling)\n"
-               "  --gatewaying   -g                  gatewaying (direct routing) (default)\n"
-               "  --weight:      -w <weight>         capacity of real server\n"
-               "  --numeric      -n                  numeric output of addresses and ports\n",
-               DEF_SCHED);
+        fprintf(stream, 
+		"Options:\n"
+                "  --tcp-service  -t service-address   service-address is host and port\n"
+                "  --udp-service  -u service-address   service-address is host and port\n"
+                "  --scheduler    -s <scheduler>       It can be rr|wrr|lc|wlc,\n"
+                "                                      the default scheduler is %s.\n"
+                "  --persistent   -p [timeout]         persistent service\n"
+                "  --netmask      -M [netmask]         persistent granularity mask\n"
+                "  --real-server  -r|-R server-address server-address is host (and port)\n"
+                "  --gatewaying   -g                   gatewaying (direct routing) (default)\n"
+                "  --ipip         -i                   ipip encapsulation (tunneling)\n"
+                "  --masquerading -m                   masquerading (NAT)\n"
+                "  --weight:      -w <weight>          capacity of real server\n"
+                "  --numeric      -n                   numeric output of addresses and ports\n",
+                DEF_SCHED);
         
-        exit(0);
+        exit(exit_status);
 }
 
 
@@ -519,7 +856,7 @@ void fail(int err, char *text) {
 }
 
 
-void list_vs_exit(unsigned int options)
+void list_vs(unsigned int format)
 {
         static char buffer[1024];
         FILE *handle;
@@ -536,39 +873,52 @@ void list_vs_exit(unsigned int options)
          * Read and print the first three head lines
          */
         for (i=0; i<2 && !feof(handle); i++) {
-                if (fgets(buffer, sizeof(buffer), handle))
+                if (fgets(buffer, sizeof(buffer), handle)
+                    && !(format & FMT_RULE))
                         printf("%s", buffer);
         }
-        if (fgets(buffer, sizeof(buffer), handle))
+        if (fgets(buffer, sizeof(buffer), handle) && !(format & FMT_RULE))
                 printf("  -> RemoteAddress:Port          "
                        "Forward Weight ActiveConn InActConn\n");
         
         /*
-         * Print the VS information according to the options
+         * Print the VS information according to the format
          */
         while (!feof(handle)) {
                 if (fgets(buffer, sizeof(buffer), handle))
-                        print_vsinfo(buffer, options);
+                        print_vsinfo(buffer, format);
         }
 
         fclose(handle);
-        exit(0);
 }
 
 
+char *get_fwd_switch(char *fwd) 
+{
+        char *swt;
+        
+        switch (fwd[0]) {
+        case 'M':
+                swt = "-m"; break;
+        case 'T':
+                swt = "-i"; break;
+        default:
+                swt = "-g"; break;
+        }
+        return swt;
+}
+        
 void print_vsinfo(char *buf, unsigned int format)
 {
-        static unsigned short proto = 0;
-        static char tmpbuf[50];
-
         /* virtual service variables */
-        static char protocol[20];
-        struct in_addr	vaddr;
-        struct in_addr	vmask;
-        unsigned short	vport;
-        static char scheduler[10];
-        static char flags[40];
+        char protocol[10];
+        static unsigned short  proto = 0;
+        static struct in_addr  vaddr;
+        static unsigned short  vport;
+        char scheduler[10];
+        char flags[40];
         unsigned int timeout;
+        struct in_addr  vmask;
 
         /* destination variables */
         static char arrow[10];
@@ -582,6 +932,8 @@ void print_vsinfo(char *buf, unsigned int format)
         int n;
         unsigned long temp;
 	unsigned long temp2;
+        char *vname;
+        char *dname;
 	
         if (buf[0] == ' ') {
                 /* destination entry */
@@ -594,19 +946,28 @@ void print_vsinfo(char *buf, unsigned int format)
                 
                 daddr.s_addr = (__u32) htonl(temp);
 
-                if (format & FMT_NUMERIC) {
-                        sprintf(tmpbuf, "%s:%u",
-                                inet_ntoa(daddr), dport);
-                } else {
-                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&daddr),
-                                port_to_anyname(dport, proto));
-                }
-                printf("  -> %-27s %-7s %-6d %-10d %-10d\n",
-                       tmpbuf, fwd, weight, activeconns, inactconns);
+                if (!(dname=addrport_to_anyname(&daddr,dport,proto,format)))
+                        exit(1);
+                
+                if (format & FMT_RULE) {
+                        if (!(vname=addrport_to_anyname
+                              (&vaddr,vport,proto,format)))
+                                exit(1);
+                                
+                        printf("-a %s %s -r %s %s -w %d\n",
+                               proto==IPPROTO_TCP?"-t":"-u",
+                               vname, dname, get_fwd_switch(fwd), weight);
+                        free(vname);
+                } else
+                        printf("  -> %-27s %-7s %-6d %-10d %-10d\n",
+                               addrport_to_anyname(&daddr,dport,proto,format),
+                               fwd, weight, activeconns, inactconns);
+                free(dname);
         } else {
                 /* virtual service entry */
-                if ((n = sscanf(buf, "%s %lX:%hX %s %s %d %lX", protocol, &temp,
-                                &vport, scheduler, flags, &timeout, &temp2)) == -1)
+                if ((n = sscanf(buf, "%s %lX:%hX %s %s %d %lX",
+                                protocol, &temp, &vport, scheduler,
+                                flags, &timeout, &temp2)) == -1)
                         exit(1);
                 if (n!=7 && n!=4)
                         fail(2, "unexpected input data");
@@ -617,23 +978,29 @@ void print_vsinfo(char *buf, unsigned int format)
                 else if (strcmp(protocol, "UDP") == 0) proto = IPPROTO_UDP;
                 else proto = 0;
 
-                if (format & FMT_NUMERIC) {
-                        sprintf(tmpbuf, "%s:%u",
-                                inet_ntoa(vaddr), vport);
-                } else {
-                        sprintf(tmpbuf, "%s:%s", addr_to_anyname(&vaddr),
-                                port_to_anyname(vport, proto));
-                }
-                printf("%s  %s %s", protocol, tmpbuf, scheduler);
+                if (!(vname=addrport_to_anyname(&vaddr,vport,proto,format)))
+                        exit(1);
+
+                if (format & FMT_RULE)
+                        printf("-A %s %s -s %s", proto==IPPROTO_TCP?"-t":"-u",
+                               vname, scheduler);
+                else
+                        printf("%s  %s %s", protocol, vname, scheduler);
+                
                 if (n == 4)
                         printf("\n");
                 else {
-                        printf(" %s %d", flags, timeout/HZ);
+                        printf(" %s %d",
+                               format&FMT_RULE?"-p":flags, timeout/HZ);
+
                         if (vmask.s_addr == (unsigned long int) 0xffffffff)
                                 printf("\n");
                         else
-                                printf(" mask %s\n", inet_ntoa(vmask));
+                                printf(" %s %s\n",
+                                       format&FMT_RULE?"-M":"mask",
+                                       inet_ntoa(vmask));
                 }
+                free(vname);
         }
 }
 
@@ -715,7 +1082,29 @@ char * port_to_anyname(int port, unsigned short proto)
         if ((name = port_to_service(port, proto)) != NULL)
                 return name;
         else {
-                sprintf(buf, "%d", port);
+                snprintf(buf, 10, "%d", port);
                 return buf;
         }
 }
+
+
+char * addrport_to_anyname(struct in_addr *addr, int port, unsigned short proto, unsigned int format)
+{
+        char *buf;
+
+        if (!(buf=malloc(60)))
+                return NULL;
+        
+        if (format & FMT_NUMERIC) {
+                snprintf(buf, 60, "%s:%u",
+                         inet_ntoa(*addr), port);
+        } else {
+                snprintf(buf, 60, "%s:%s", addr_to_anyname(addr),
+                         port_to_anyname(port, proto));
+        }
+
+        return buf;
+}
+
+
+
