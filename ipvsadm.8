@@ -29,7 +29,7 @@
 .\"     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 .\"
 .\"
-.TH IPVSADM 8 "9th April 2000" "LVS Administration" " Linux Administrator's Guide"
+.TH IPVSADM 8 "25th May 2000" "LVS Administration" " Linux Administrator's Guide"
 .UC 4
 .SH NAME
 ipvsadm \- Linux Virtual Server administration
@@ -202,10 +202,13 @@ and may plus \fIport\fP. \fIHost\fP can be either a plain IP address
 or a hostname.  \fIPort\fP can be either a plain port number or the
 service name of port.  In the case of the masquerading method, the
 host address is usually a private IP address, and the port can be
-different from that of the associated service. If \fIport\fP is not
-specified, the port specified  in the service address will be
-used. With the tunneling and direct routing methods, \fIport\fP must
-be equal to that of the service address.
+different from that of the associated service. With the tunneling and
+direct routing methods, \fIport\fP must be equal to that of the
+service address. For normal services, the port specified  in the
+service address will be used if \fIport\fP is not specified. For
+fwmark services, \fIport\fP may be ommitted, in  which case  the
+destination port on the real server will be the destination port of
+the request sent to  the virtual  service.
 .TP
 .B [packet-forwarding-method]
 .sp
