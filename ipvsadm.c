@@ -38,6 +38,7 @@
  *                            :   in parse_service
  *        Horms               :   ensure that a -r is passed when needed
  *        Wensong Zhang       :   fixed the output of fwmark rules
+ *        Horms               :   added kernel version verification
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
@@ -103,6 +104,22 @@
 #ifdef HAVE_POPT
 #include "popt.h"
 #include "config_stream.h"
+
+#define IPVS_OPTION_PROCESSING          "popt"
+#else
+#define IPVS_OPTION_PROCESSING          "getopt_long"
+#endif
+
+#define IPVSADM_VERSION_NO              "v1.10"
+#define IPVSADM_VERSION_DATE            "2000/05/09"
+#define IPVSADM_VERSION         IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
+
+#define MINIMUM_IPVS_VERSION_MAJOR      0
+#define MINIMUM_IPVS_VERSION_MINOR      9
+#define MINIMUM_IPVS_VERSION_PATCH      10
+
+#ifndef IPVS_VERSION
+#define IPVS_VERSION(x,y,z) (((x)<<16)+((y)<<8)+(z))
 #endif
 
 /* default scheduler */
@@ -113,11 +130,11 @@
 #define FMT_NUMERIC	0x0001
 #define FMT_RULE	0x0002
 
-#define SERVICE_NONE     0x0
-#define SERVICE_ADDR     0x1
-#define SERVICE_PORT     0x2
+#define SERVICE_NONE    0x0
+#define SERVICE_ADDR    0x1
+#define SERVICE_PORT    0x2
 
-#define VS_PROC_FILE            "/proc/net/ip_masq/vs"
+#define VS_PROC_FILE    "/proc/net/ip_masq/vs"
 
 int string_to_number(const char *s, int min, int max);
 int host_to_addr(const char *name, struct in_addr *addr);
@@ -129,17 +146,19 @@ char * port_to_anyname(int port, unsigned short proto);
 char * addrport_to_anyname(struct in_addr *addr, int port,
                            unsigned short proto, unsigned int format);
 
-int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port);
+int parse_service(char *buf, u_int16_t proto,
+                  u_int32_t *addr, u_int16_t *port);
 int parse_fwmark(char *buf, u_int32_t *fwmark);
 int parse_netmask(char *buf, u_int32_t *addr);
 int parse_timeout(char *buf, unsigned *timeout);
 
 void usage_exit(const char *program, const int exit_status);
 void fail(int err, char *text);
+void check_ipvs_version(void);
 void list_vs(unsigned int options);
 void print_vsinfo(char *buf, unsigned int format);
-int process_options(int argc, char **argv, int reading_stdin,
-                    unsigned int options);
+int process_options(int argc, char **argv,
+                    int reading_stdin, unsigned int options);
 int str_is_digit(const char *str);
 
 
@@ -148,13 +167,18 @@ int main(int argc, char **argv)
         unsigned int options = FMT_NONE;
 
         /*
-         *   If no other arguement, list VS_PROC_FILE
+         *      If no other arguement, list VS_PROC_FILE
          */
         if (argc == 1){
                 list_vs(options);
 		exit(0);
 	}
         
+	/*
+	 *      Warn the user if the IPVS version is out of date
+	 */
+	check_ipvs_version();
+
         /*
          *	Process command line arguments
          */
@@ -496,7 +520,7 @@ int process_options(int argc, char **argv, int reading_stdin,
 				              &mc.u.vs_user.vport);
                         if (!(parse & SERVICE_ADDR )) 
 				fail(2, "illegal virtual server "
-                                             "address[:port] specified");
+                                        "address[:port] specified");
                         break;
                 case 'f':
                         if (mc.u.vs_user.vfwmark != 0)
@@ -514,7 +538,7 @@ int process_options(int argc, char **argv, int reading_stdin,
                         parse = parse_fwmark(optarg, &mc.u.vs_user.vfwmark);
                         if (parse == 0 || mc.u.vs_user.vfwmark == 0 ) 
 				fail(2, "illegal virtual server "
-                                     "fwmark specified");
+                                        "fwmark specified");
                         break;
                 case 's':
                         if (strlen(mc.m_tname) != 0)
@@ -529,15 +553,17 @@ int process_options(int argc, char **argv, int reading_stdin,
                                 optarg = argv[optind++];
                         parse = parse_timeout(optarg,
                                               &mc.u.vs_user.timeout);
-                        if (parse == 0) fail(2, "illegal timeout "
-                                             "for persistent service");
+                        if (parse == 0)
+                                fail(2, "illegal timeout "
+                                        "for persistent service");
 #endif
                         break;
                 case 'M':
                         parse = parse_netmask(optarg,
                                               &mc.u.vs_user.netmask);
-                        if (parse != 1) fail(2, "illegal virtual server "
-                                             "persistent mask specified");
+                        if (parse != 1)
+                                fail(2, "illegal virtual server "
+                                        "persistent mask specified");
                         break;
                 case 'r':
                 case 'R':
@@ -550,8 +576,8 @@ int process_options(int argc, char **argv, int reading_stdin,
                                               &mc.u.vs_user.dport);
                         if (!(parse&SERVICE_ADDR)) 
 				fail(2, "illegal real server "
-                                             "address[:port] specified");
-                                /* copy vport to dport if none specified */
+                                        "address[:port] specified");
+                        /* copy vport to dport if none specified */
                         if (parse == 1)
                                 mc.u.vs_user.dport = mc.u.vs_user.vport;
                         break;
@@ -683,9 +709,9 @@ int process_options(int argc, char **argv, int reading_stdin,
                  * if the IP_MASQ_F_VS_TUNNEL or IP_MASQ_F_VS_DROUTE is set.
                  * Don't worry about this if fwmark is used.
                  */
-                if ( !mc.u.vs_user.vfwmark &&
-                     (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL
-                      || mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
+                if (!mc.u.vs_user.vfwmark &&
+                    (mc.u.vs_user.masq_flags == IP_MASQ_F_VS_TUNNEL
+                     || mc.u.vs_user.masq_flags == IP_MASQ_F_VS_DROUTE))
                         mc.u.vs_user.dport = mc.u.vs_user.vport;
         }
 
@@ -888,12 +914,8 @@ void usage_exit(const char *program, const int exit_status) {
                 stream = stdout;
 
         fprintf(stream,
-                "ipvsadm  v1.9 2000/04/08"
-#ifdef HAVE_POPT
-                " (popt)\n"
-#else
-                " (getopt_long)\n"
-#endif
+                "ipvsadm " IPVSADM_VERSION " (compiled with "
+                IPVS_OPTION_PROCESSING " and IPVS v%d.%d.%d)\n"
                 "Usage: %s -[A|E] -[t|u|f] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
                 "       %s -D -[t|u|f] service-address\n"
                 "       %s -C\n"
@@ -905,6 +927,7 @@ void usage_exit(const char *program, const int exit_status) {
                 "       %s -d -[t|u|f] service-address -[r|R] server-address\n"
                 "       %s -[L|l] [-n]\n"
                 "       %s -h\n\n",
+                NVERSION(IP_VS_VERSION_CODE),                     
 #ifdef HAVE_POPT
                 program, program,
 #endif
@@ -952,6 +975,48 @@ void usage_exit(const char *program, const int exit_status) {
 void fail(int err, char *text) {
         printf("%s\n",text);
         exit(err);
+}
+
+
+void check_ipvs_version(void)
+{
+        static char buffer[1024];
+	int major;
+	int minor;
+	int patch;
+        FILE *handle;
+
+        handle = fopen(VS_PROC_FILE, "r");
+        if (!handle) {
+                fprintf(stderr, "Could not open the %s file\n"
+                        "Are you sure that IP Virtual Server is supported "
+                        "by the kernel?\n", VS_PROC_FILE);
+                exit(1);
+        }
+
+        /*
+         * Read the first line and verify the IPVS version
+         */
+        if (!feof(handle) && fgets(buffer, sizeof(buffer), handle)) {
+	    	sscanf(buffer, "%*1024[a-z A-Z] %d.%d.%d", 
+                       &major, &minor, &patch);
+                if (IPVS_VERSION(major,minor,patch) <
+                    IPVS_VERSION(MINIMUM_IPVS_VERSION_MAJOR,
+                                 MINIMUM_IPVS_VERSION_MINOR,
+                                 MINIMUM_IPVS_VERSION_PATCH)) {
+                        fprintf(stderr, 
+                                "Warning: IPVS version missmatch: \n"
+                                "  Kernel compiled with IPVS version %d.%d.%d\n"
+                                "  ipvsadm " IPVSADM_VERSION_NO
+                                " requires minimum IPVS version %d.%d.%d\n\n", 
+                                major, minor, patch, 
+                                MINIMUM_IPVS_VERSION_MAJOR,
+                                MINIMUM_IPVS_VERSION_MINOR,
+                                MINIMUM_IPVS_VERSION_PATCH);
+		}
+		buffer[strlen(buffer)-1]='\0';
+	}
+        fclose(handle);
 }
 
 
