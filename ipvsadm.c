@@ -21,6 +21,8 @@
  *        Wensong Zhang       :   added the hostname and portname input
  *        Wensong Zhang       :   added the hostname and portname output
  *	  Lars Marowsky-Brée  :   added persistence granularity support
+ *        Julian Anastasov    :   fixed the (null) print for unknown services
+ *        Wensong Zhang       :   added the port_to_anyname function
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
  *
@@ -91,6 +93,7 @@ char * addr_to_host(struct in_addr *addr);
 char * addr_to_anyname(struct in_addr *addr);
 int service_to_port(const char *name, unsigned short proto);
 char * port_to_service(int port, unsigned short proto);
+char * port_to_anyname(int port, unsigned short proto);
 
 int parse_service(char *buf, u_int16_t proto, u_int32_t *addr, u_int16_t *port);
 int parse_netmask(char *buf, u_int32_t *addr);
@@ -471,7 +474,7 @@ int parse_timeout(char *buf, unsigned *timeout)
 
 
 void usage_exit(char *program) {
-        printf("ipvsadm  v1.6 1999/11/7\n"
+        printf("ipvsadm  v1.7 1999/11/28\n"
                "Usage: %s -[A|E] -[t|u] service-address [-s scheduler] [-p [timeout]] [-M [netmask]]\n"
                "       %s -D -[t|u] service-address\n"
                "       %s -C\n"
@@ -537,8 +540,8 @@ void list_vs_exit(unsigned int options)
                         printf("%s", buffer);
         }
         if (fgets(buffer, sizeof(buffer), handle))
-                printf("  -> RemoteAddress:Port          Forward "
-                       "Weight ActiveConn InActConn\n");
+                printf("  -> RemoteAddress:Port          "
+                       "Forward Weight ActiveConn InActConn\n");
         
         /*
          * Print the VS information according to the options
@@ -553,8 +556,7 @@ void list_vs_exit(unsigned int options)
 }
 
 
-void
-print_vsinfo(char *buf, unsigned int format)
+void print_vsinfo(char *buf, unsigned int format)
 {
         static unsigned short proto = 0;
         static char tmpbuf[50];
@@ -597,7 +599,7 @@ print_vsinfo(char *buf, unsigned int format)
                                 inet_ntoa(daddr), dport);
                 } else {
                         sprintf(tmpbuf, "%s:%s", addr_to_anyname(&daddr),
-                                port_to_service(dport, proto));
+                                port_to_anyname(dport, proto));
                 }
                 printf("  -> %-27s %-7s %-6d %-10d %-10d\n",
                        tmpbuf, fwd, weight, activeconns, inactconns);
@@ -620,7 +622,7 @@ print_vsinfo(char *buf, unsigned int format)
                                 inet_ntoa(vaddr), vport);
                 } else {
                         sprintf(tmpbuf, "%s:%s", addr_to_anyname(&vaddr),
-                                port_to_service(vport, proto));
+                                port_to_anyname(vport, proto));
                 }
                 printf("%s  %s %s", protocol, tmpbuf, scheduler);
                 if (n == 4)
@@ -689,6 +691,7 @@ int service_to_port(const char *name, unsigned short proto)
                 return -1;
 }
 
+
 char * port_to_service(int port, unsigned short proto)
 {
         struct servent *service;
@@ -701,4 +704,18 @@ char * port_to_service(int port, unsigned short proto)
                 return service->s_name;
         else
                 return (char *) NULL;
+}
+
+
+char * port_to_anyname(int port, unsigned short proto)
+{
+        char *name;
+        static char buf[10];
+
+        if ((name = port_to_service(port, proto)) != NULL)
+                return name;
+        else {
+                sprintf(buf, "%d", port);
+                return buf;
+        }
 }
