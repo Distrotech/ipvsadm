@@ -1,0 +1,164 @@
+.TH IPVSADM 8 "Tue Sep 24 1999" "LVS Administration" " Linux Administrator's Guide"
+.UC 4
+.SH NAME
+ipvsadm \- administer the routing table on a  Linux Virtual Server
+.SH SYNOPSIS
+.B ipvsadm -A -[t|u] \fIv.v.v.v:vport\fP [-s \fIwlc|rr|wrr\fP] [-p]
+.br
+.B ipvsadm -D -[t|u] \fIv.v.v.v:vport\fP
+.br
+.B ipvsadm -C
+.br
+.B ipvsadm -a -[t|u] \fIv.v.v.v:vport\fP -r \fId.d.d.d[:dport]\fP
+.ti 15
+.B [-g|-m|-i] [-w \fIweight\fP]
+.br
+.B ipvsadm -d -[t|u] \fIv.v.v.v:vport\fP -r \fId.d.d.d[:dport]\fP
+.br
+.B ipvsadm [-L|-l]
+.br
+.B ipvsadm -h
+.SH DESCRIPTION
+Use \fBipvsadm\fP(8) to build a Linux Virtual Server (LVS) based on a cluster 
+of two or more nodes. The active node of the cluster redirects service requests 
+to a collection of server hosts that will actually perform the services. You 
+use \fBipvsadm\fR(8) to set up, maintain or inspect the kernel routing table.
+Supported features include two protocols (TCP and UDP),
+three packet-forwarding methods (NAT, tunneling, and direct routing), and
+three load balancing algorithms (round robin, weighted round robin, and
+weighted least-connection).
+.PP
+The command has these two basic versions:
+.TP
+.B ipvsadm COMMAND [protocol] service-address
+.ti 8
+.B [scheduling-method]
+.TP
+.B ipvsadm command [protocol] service-address
+.ti 8
+.B server-address [packet-forwarding-method] [server-capacity]  
+.PP
+The first version adds a public service address (an IP address and port
+associated with a service request rather than a specific network host) to the
+kernel routing table and specifies the method for assigning
+service requests to hosts. The second version associates an existing public
+service address in the table with the addresses of the server hosts to which
+requests for service may be redirected. This version also indicates the
+packet-forwarding method and the capacity of the server hosts relative to one
+another.
+.SS COMMANDS
+\fBipvsadm\fR(8) recognizes the commands described below. Upper-case commands
+maintain public service addresses. Lower-case commands maintain the
+associations between a service address and the network hosts to which requests
+for service are redirected. 
+.TP
+\fB-A\fR
+Add a public service address to the routing table. A service address is
+uniquely defined by a triplet: IP address, port number, and protocol type.
+.TP
+\fB-D\fR
+Delete a service address from the routing table, along with any associated
+server hosts added with the \fI-a\fP command.
+.TP
+\fB-C\fR
+Clear the routing table.
+.TP
+\fB-a\fR
+Associate an existing public service address with a server host to which
+the service may be redirected.
+.TP
+\fB-d\fR
+Remove a server from the pool of hosts to which a service may be redirected. 
+.TP
+\fB-L, -l\fR
+Display the routing table.
+.TP
+\fB-h\fR
+Help. Display a description of the command syntax.
+.SS PARAMETERS
+The commands above accept or require zero or more of the following
+parameters. 
+.TP
+\fB[protocol]\fP
+The protocol to be used for the virtual server:
+.sp
+\fB-t\fR Use TCP.
+.sp
+\fB-u\fR Use UDP.
+.TP
+.B [packet-forwarding-method]
+.sp
+\fB-g\fR Use gatewaying (direct routing). This is the default.
+.sp
+\fB-m\fR Use masquerading (network access translation, or NAT).
+.sp
+\fB-i\fR Use ipip encapsulation (tunneling).
+.TP
+.B [-w \fIweight\fP]
+\fIweight\fP is an integer (default 1) specifying the processing capacity 
+of a server relative to that of others in the pool.
+.TP
+.B [-s \fIscheduling-method\fP]
+\fIscheduling-method\fP is the algorithm for distributing the jobs to servers:
+.sp
+\fBwlc\fR - weighted least-connection: assign more jobs to servers with
+fewer active jobs relative to their capacity (i.e., number of active jobs
+divided by \fIweight\fP). This is the default.
+.sp
+\fBrr\fR - robin robin: distribute jobs equally among the available servers.
+.sp
+\fBwrr\fR - weighted round robin: assign more jobs to servers with
+larger capacity (i.e., assign jobs in decending order by \fIweight\fP).
+.TP
+.B [-p]
+Persistent port. If this switch is specified, multiple requests from a client
+are redirected to the same server each time (the one selected for the first
+request). Use this option to solve problems with cookies, SSL, or PASV FTP
+with tunneling or direct routing. The timeout of persistent sessions is 300
+seconds by default. 
+.TP
+.I v.v.v.v:vport
+The public IP address and port of a service to be redirected. 
+.TP
+.B -r \fId.d.d.d:[dport]\fR
+The actual IP address and port of a real server that an associated request
+for service may be assigned to. This address is typically on a physically
+separate network; in the case of masquerade address mapping, it is usually
+also a private IP address. If not specified, \fIdport\fP will be the same as
+the \fIvport\fP specified in the service address. With the direct routing
+method (but not the other two), \fIdport\fP may be different from \fIvport\fP. 
+.SH EXAMPLE
+The following commands configure a redirector host to distribute incoming Web
+requests addressed to port 80 on 207.175.44.110 equally to port 80 on five Web
+server hosts.  The networking model for this example is NAT with each of the
+real servers being masqueraded by the LVS.
+.PP
+.nf
+ipvsadmin -A -t 207.175.44.110:80 -s rr
+ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.0 -m
+ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.1 -m
+ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.2 -m 
+ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.3 -m 
+ipvsadmin -a -t 207.175.44.110:80 -r 192.168.10.4 -m 
+.fi
+.PP
+The default route of the Web server hosts must be set to the redirector box, and
+the redirector box must be configured to forward the masquerading packets.
+.PP
+.nf
+echo "1" > /proc/sys/net/ipv4/ip_forward
+ipchains -A forward -j MASQ -s 192.168.10.0/24 -d 0.0.0.0/0
+.fi
+.SH FILES
+.I /proc/net/ip-masq/vs
+.SH SEE ALSO
+.BR lvs (8),
+.BR piranha (8),
+.BR lvs.cf (5).
+.SH AUTHORS
+.nf
+ipvsadm - Wensong Zhang <wensong@iinchina.net>
+	     Peter Kese <peter.kese@ijs.si>
+man page - Mike Wangsmo <wanger@redhat.com>
+           Wensong Zhang <wensong@iinchina.net>
+.fi
