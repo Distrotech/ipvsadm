@@ -81,7 +81,7 @@ OBJS = ipvsadm.o
 endif
 
 LIBS = $(POPT_LIB)
-DEFINES = $(POPT_DEFINE)
+DEFINES = -DVERSION=\"$(VERSION)\" $(POPT_DEFINE)
 
 .PHONY = all clean install dist distclean rpm rpms
 

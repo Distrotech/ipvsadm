@@ -44,7 +44,10 @@ find . -type f | sed "s,^\.\(.*\),%attr (-\,root\,root) \1," \
 find . -type l | sed 's,^\.,\%attr(-\,root\,root) ,' \
   >> ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 # compress the man pages
-perl -pi -e 's/(.*man.*\.[0-9])/$1.gz/g' ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
+if [ -x /usr/lib/rpm/brp-compress ] ; then
+	perl -pi -e 's/(.*man.*\.[0-9])/$1.gz/g' ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
+fi
+
 
 %clean
 rm -rf $RPM_BUILD_DIR/%{name}
@@ -57,6 +60,10 @@ rm ${RPM_BUILD_DIR}/%{name}-%{version}-%{release}.files
 
 
 %changelog
+* Thu Dec 17 2000 Wensong Zhang <wensong@linuxvirtualserver.org>
+- Added a if-condition to keep both new or old rpm utility building
+  the package happily.
+
 * Tue Dec 12 2000 P.opeland <bryce@redhat.com>
 - Small modifications to make the compiler happy in RH7 and the Alpha
 - Fixed the documentation file that got missed off in building

@@ -10,9 +10,6 @@
  *
  *      Changes:
  *
- *	  P.Copeland	      :   added some casts to stop gcc grumbling,
- *                                and made small tweeks to stop -pedantic
- *                                complaining.
  *        Wensong Zhang       :   added the editting service & destination support
  *        Wensong Zhang       :   added the feature to specify persistent port
  *        Jacob Rief          :   found the bug that masquerading dest of
@@ -52,6 +49,9 @@
  *        		      :   compiled against getopt_long now results
  *        		          in an informative error message rather
  *        		          than the usage information
+ *	  P.Copeland	      :   added some casts to stop gcc grumbling,
+ *                                and made small tweeks to stop -pedantic
+ *                                complaining.
  *
  *
  *      ippfvsadm - Port Fowarding & Virtual Server ADMinistration program
@@ -124,9 +124,9 @@
 #define IPVS_OPTION_PROCESSING          "getopt_long"
 #endif
 
-#define IPVSADM_VERSION_NO              "v1.12"
-#define IPVSADM_VERSION_DATE            "2000/11/02"
-#define IPVSADM_VERSION         IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
+#define IPVSADM_VERSION_NO              "v" VERSION
+#define IPVSADM_VERSION_DATE            "2000/12/17"
+#define IPVSADM_VERSION                 IPVSADM_VERSION_NO " " IPVSADM_VERSION_DATE
 
 #define MINIMUM_IPVS_VERSION_MAJOR      0
 #define MINIMUM_IPVS_VERSION_MINOR      9
@@ -1058,17 +1058,18 @@ void usage_exit(const char *program, const int exit_status) {
         fprintf(stream,
                 "ipvsadm " IPVSADM_VERSION " (compiled with "
                 IPVS_OPTION_PROCESSING " and IPVS v%d.%d.%d)\n"
-                "Usage: %s -[A|E] -[t|u|f] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
-                "       %s -D -[t|u|f] service-address\n"
-                "       %s -C\n"
+                "Usage:\n"
+                "  %s -[A|E] -[t|u|f] service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
+                "  %s -D -[t|u|f] service-address\n"
+                "  %s -C\n"
 #ifdef HAVE_POPT
-                "       %s -R\n"
-                "       %s -S [-n]\n"
+                "  %s -R\n"
+                "  %s -S [-n]\n"
 #endif
-                "       %s -[a|e] -[t|u|f] service-address -[r|R] server-address [-g|-i|-m] [-w weight]\n"
-                "       %s -d -[t|u|f] service-address -[r|R] server-address\n"
-                "       %s -[L|l] [-n]\n"
-                "       %s -h\n\n",
+                "  %s -[a|e] -[t|u|f] service-address -[r|R] server-address [-g|-i|-m] [-w weight]\n"
+                "  %s -d -[t|u|f] service-address -[r|R] server-address\n"
+                "  %s -[L|l] [-n]\n"
+                "  %s -h\n\n",
                 NVERSION(IP_VS_VERSION_CODE),                     
 #ifdef HAVE_POPT
                 program, program,
@@ -1116,7 +1117,7 @@ void usage_exit(const char *program, const int exit_status) {
         fprintf(stream,
                 "  --ipip         -i                   ipip encapsulation (tunneling)\n"
                 "  --masquerading -m                   masquerading (NAT)\n"
-                "  --weight:      -w <weight>          capacity of real server\n"
+                "  --weight       -w <weight>          capacity of real server\n"
                 "  --numeric      -n                   numeric output of addresses and ports\n"
 		);
         
