@@ -38,12 +38,13 @@ ipvsadm \- administer the routing table on a  Linux Virtual Server
 .br
 .B ipvsadm -h
 .SH DESCRIPTION
-Use \fBipvsadm\fP(8) to build a Linux Virtual Server (LVS) based on a cluster 
-of two or more nodes. The active node of the cluster redirects service requests 
-to a collection of server hosts that will actually perform the services. You 
-use \fBipvsadm\fR(8) to set up, maintain or inspect the kernel routing table.
-Supported features include two protocols (TCP and UDP), three packet-forwarding 
-methods (NAT, tunneling, and direct routing), and four load balancing 
+Use \fBipvsadm\fP(8) to build a Linux Virtual Server (LVS) based on a
+cluster  of two or more nodes. The active node of the cluster
+redirects service requests  to a collection of server hosts that will
+actually perform the services. You  use \fBipvsadm\fR(8) to set up,
+maintain or inspect the kernel routing table.  Supported features
+include two protocols (TCP and UDP), three packet-forwarding  methods
+(NAT, tunneling, and direct routing), and four load balancing
 algorithms (round robin, weighted round robin, least-connection and
 weighted least-connection).
 .PP
@@ -53,19 +54,20 @@ The command has these two basic versions:
 .TP
 .B ipvsadm command [protocol] service-address server-address [packet-forwarding-method] [server-capacity]  
 .PP
-The first version adds a public service address (a host address and port
-associated with a service request rather than a specific network host) to the
-kernel routing table and specifies the method for assigning service requests 
-to hosts and the persistent timeout. The second version associates an existing 
-public service address in the table with the addresses of the server hosts to 
-which requests for service may be redirected. This version also indicates the
-packet-forwarding method and the capacity of the server hosts relative to one
-another.
+The first version adds a public service address (a host address and
+port associated with a service request rather than a specific network
+host) to the kernel routing table and specifies the method for
+assigning service requests  to hosts and the persistent timeout. The
+second version associates an existing  public service address in the
+table with the addresses of the server hosts to  which requests for
+service may be redirected. This version also indicates the
+packet-forwarding method and the capacity of the server hosts relative
+to one another.
 .SS COMMANDS
-\fBipvsadm\fR(8) recognizes the commands described below. Upper-case commands
-maintain public service addresses. Lower-case commands maintain the
-associations between a service address and the network hosts to which requests
-for service are redirected. 
+\fBipvsadm\fR(8) recognizes the commands described below. Upper-case
+commands maintain public service addresses. Lower-case commands
+maintain the associations between a service address and the network
+hosts to which requests for service are redirected.
 .TP
 \fB-A\fR
 Add a public service address to the routing table. A service address is
@@ -137,13 +139,14 @@ problems with non-persistent cache clusters on the client side.
 .B -r, --real-server \fIserver-address\fP
 Real server that an associated request for service may be assigned to.
 The \fIserver-address\fP is the \fIhost\fP address of a real server,
-and may plus \fIport\fP. \fIHost\fP can be either a plain IP address or a hostname. 
-\fIPort\fP can be either a plain port number or the service name of port.
-In the case of the masquerading method, the host address is usually
-a private IP address, and the port can be different from that of the
-associated service. If \fIport\fP is not specified, the port specified 
-in the service address will be used. With the tunneling and direct routing
-methods, \fIport\fP must be equal to that of the service address. 
+and may plus \fIport\fP. \fIHost\fP can be either a plain IP address
+or a hostname.  \fIPort\fP can be either a plain port number or the
+service name of port.  In the case of the masquerading method, the
+host address is usually a private IP address, and the port can be
+different from that of the associated service. If \fIport\fP is not
+specified, the port specified  in the service address will be
+used. With the tunneling and direct routing methods, \fIport\fP must
+be equal to that of the service address.
 .TP
 .B [packet-forwarding-method]
 .sp
@@ -154,35 +157,36 @@ methods, \fIport\fP must be equal to that of the service address.
 \fB-i, --ipip\fR  Use ipip encapsulation (tunneling).
 .TP
 .B -w, --weight \fIweight\fP
-\fIweight\fP is an integer (default 1) specifying the processing capacity 
-of a server relative to that of others in the pool. The valid values of
-\fIweight\fP is from 0 through 65535. The server with weight=0 is "quiesced"
-and receives no new jobs but still serves the existing jobs. It is useful
-to cool down overloaded servers or get some servers out of service for
-maintenance.
+\fIweight\fP is an integer (default 1) specifying the processing
+capacity  of a server relative to that of others in the pool. The
+valid values of \fIweight\fP is from 0 through 65535. The server with
+weight=0 is "quiesced" and receives no new jobs but still serves the
+existing jobs. It is useful to cool down overloaded servers or get
+some servers out of service for maintenance.
 .TP
 .B -n, --numeric
-Numeric output.
-IP addresses and port numbers will be printed in numeric format.
-By default, the program will try to display them as host names,
-network names, or services (whenever applicable).
+Numeric output.  IP addresses and port numbers will be printed in
+numeric format.  By default, the program will try to display them as
+host names, network names, or services (whenever applicable).
 .SH EXAMPLE
-The following commands configure a redirector host to distribute incoming Web
-requests addressed to port 80 on 207.175.44.110 equally to port 80 on five Web
-server hosts.  The networking model for this example is NAT with each of the
-real servers being masqueraded by the LVS.
+The following commands configure a redirector host to distribute
+incoming Web requests addressed to port 80 on 207.175.44.110 equally
+to port 80 on five Web server hosts.  The networking model for this
+example is NAT with each of the real servers being masqueraded by the
+LVS.
 .PP
 .nf
 ipvsadm -A -t 207.175.44.110:80 -s rr
-ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.0 -m
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.1 -m
-ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.2 -m 
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.2 -m
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.3 -m 
 ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.4 -m 
+ipvsadm -a -t 207.175.44.110:80 -r 192.168.10.5 -m 
 .fi
 .PP
-The default route of the Web server hosts must be set to the redirector box, and
-the redirector box must be configured to forward the masquerading packets.
+The default route of the Web server hosts must be set to the
+redirector box, and the redirector box must be configured to forward
+the masquerading packets.
 .PP
 .nf
 echo "1" > /proc/sys/net/ipv4/ip_forward
