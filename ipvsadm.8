@@ -166,6 +166,8 @@ creates corresponding connections. Then, in case the primary load
 balancer fails, a backup load balancer will takeover, and it has state
 of almost all connections, so that almost all established connections
 can continue to access the service.
+.PP
+The sync daemon currently only supports IPv4 connections.
 .TP
 .B --stop-daemon
 Stop the connection synchronization daemon.
@@ -195,7 +197,8 @@ virtual service instead of an address, port and protocol (UDP or
 TCP). The marking of packets with a firewall-mark is configured using
 the -m|--mark option to \fBiptables\fR(8). It can be used to build a
 virtual service assoicated with the same real servers, covering
-multiple IP address, port and protocol tripplets.
+multiple IP address, port and protocol tripplets. If IPv6 addresses
+are used, the -6 option must be used.
 .sp
 Using firewall-mark virtual services provides a convenient method of
 grouping together different IP addresses, ports and protocols into a
@@ -280,6 +283,8 @@ this netmask to direct all clients from a network to the same real
 server. The default is \fI255.255.255.255\fP, that is, the persistence
 granularity is per client host. Less specific netmasks may be used to
 resolve problems with non-persistent cache clusters on the client side.
+IPv6 netmasks should be specified as a prefix length between 1 and 128.
+The default prefix length is 128.
 .TP
 .B -r, --real-server \fIserver-address\fP
 Real server that an associated request for service may be assigned to.
@@ -391,7 +396,10 @@ client/network to the same server.
 Sort the list of virtual services and real servers. The virtual
 service entries are sorted in ascending order by <protocol, address,
 port>. The real server entries are sorted in ascending order by
-<address, port>.
+<address, port>. (default)
+.TP
+.B --nosort
+Do not sort the list of virtual services and real servers.
 .TP
 .B -n, --numeric
 Numeric output.  IP addresses and port numbers will be printed in
@@ -403,6 +411,9 @@ Expand numbers.  Display the exact value of the packet and  byte
 counters,  instead  of only the rounded number in K's (multiples of
 1000) M's (multiples of 1000K) or G's (multiples  of 1000M).  This
 option is only relevant for the -L command.
+.TP
+.B -6
+Use with -f to signify fwmark rule uses IPv6 addresses.
 .SH EXAMPLE 1 - Simple Virtual Service
 The following commands configure a Linux Director to distribute
 incoming requests addressed to port 80 on 207.175.44.110 equally to
@@ -473,6 +484,15 @@ modprobe ip_tables
 iptables  -A PREROUTING -t mangle -d 207.175.44.110/31 -j MARK --set-mark 1
 modprobe ip_vs_ftp
 .fi
+.SH IPv6
+IPv6 addresses should be surrounded by square brackets ([ and ]).
+.PP
+.nf
+ipvsadm -A -t [2001:db8::80]:80 -s rr
+ipvsadm -a -t [2001:db8::80]:80 -r [2001:db8::a0a0]:80 -m
+.fi
+.PP
+fwmark IPv6 services require the -6 option.
 .SH NOTES
 The Linux Virtual Server implements three defense strategies against
 some types of denial of service (DoS) attacks. The Linux Director

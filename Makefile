@@ -27,7 +27,7 @@
 
 NAME		= ipvsadm
 VERSION		= $(shell cat VERSION)
-RELEASE		= 6
+RELEASE		= 1
 SCHEDULERS	= "$(shell cat SCHEDULERS)"
 PROGROOT	= $(shell basename `pwd`)
 ARCH		= $(shell uname -m)
@@ -35,7 +35,7 @@ RPMSOURCEDIR	= $(shell rpm --eval '%_sourcedir')
 RPMSPECDIR	= $(shell rpm --eval '%_specdir')
 
 CC		= gcc
-INCLUDE		= -I/usr/src/linux/include -I.. -I.
+INCLUDE		= -I.. -I.
 SBIN		= $(BUILD_ROOT)/sbin
 MANDIR		= usr/man
 MAN		= $(BUILD_ROOT)/$(MANDIR)/man8
@@ -45,9 +45,9 @@ INSTALL		= install
 STATIC_LIBS	= libipvs/libipvs.a
 
 ifeq "${ARCH}" "sparc64"
-    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -O2 -m64 -pipe -mcpu=ultrasparc -mcmodel=medlow
+    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -m64 -pipe -mcpu=ultrasparc -mcmodel=medlow
 else
-    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -O2
+    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g
 endif
 
 
@@ -66,7 +66,7 @@ LIB_SEARCH = /lib /usr/lib /usr/local/lib
 POPT_LIB = $(shell for i in $(LIB_SEARCH); do \
   if [ -f $$i/libpopt.a ]; then \
     if nm $$i/libpopt.a | fgrep -q poptGetContext; then \
-	echo "-L$$i -lpopt"; \
+	echo "-lpopt"; \
     fi; \
   fi; \
 done)
@@ -78,6 +78,9 @@ endif
 
 OBJS		= ipvsadm.o config_stream.o dynamic_array.o
 LIBS		= $(POPT_LIB)
+ifneq (0,$(HAVE_NL))
+LIBS		+= -lnl
+endif
 DEFINES		= -DVERSION=\"$(VERSION)\" -DSCHEDULERS=\"$(SCHEDULERS)\" \
 		  $(POPT_DEFINE)
 DEFINES		+= $(shell if [ ! -f ../ip_vs.h ]; then	\
