@@ -12,19 +12,19 @@
 # Based on init script for ipchains by Joshua Jensen <joshua@redhat.com>
 #
 # Changes:
-#       Wenzhuo Zhang           :       fixed the typo of failure function
+#	Wenzhuo Zhang		:	fixed the typo of failure function 
 #
 # config: /etc/sysconfig/ipvsadm
 # config: /etc/ipvsadm.rules
 
 
-# Exit silently if there is no configuration file
+# set the configuration file
 if [ -f "/etc/sysconfig/ipvsadm"  ]; then
   IPVSADM_CONFIG="/etc/sysconfig/ipvsadm"
 elif [ -f "/etc/ipvsadm.rules"  ]; then
   IPVSADM_CONFIG="/etc/ipvsadm.rules"
 else
-  exit 0
+  IPVSADM_CONFIG="/etc/sysconfig/ipvsadm"
 fi
 
 # Use the funtions provided by Red Hat or use our own
@@ -47,7 +47,7 @@ fi
 
 # Check for ipvsadm in both /sbin and /usr/sbin
 # The default install puts it in /sbin, as it is analogos to commands such
-# as route and ipchains that live in /sbin.  Some vendors, most notibly
+# as route and ipchains that live in /sbin.  Some vendors, most notibly 
 # Red Hat insist on moving it to /usr/sbin
 if [ ! -x /sbin/ipvsadm -a  ! -x /usr/sbin/ipvsadm ]; then
     exit 0
@@ -59,7 +59,7 @@ case "$1" in
     #  pre-existing rules.
     action "Clearing the current IPVS table:" ipvsadm -C
     echo -n "Applying IPVS configuration: "
-      grep -v "^#" $IPVSADM_CONFIG | ipvsadm-restore && \
+      ipvsadm-restore < "$IPVSADM_CONFIG" && \
       success "Applying IPVS configuration" || \
       failure "Applying IPVS configuration"
     echo
@@ -67,7 +67,7 @@ case "$1" in
   ;;
 
   stop)
-	action "Clearing the current IPVS table:" ipvsadm -C
+        action "Clearing the current IPVS table:" ipvsadm -C
 	rm -f /var/lock/subsys/ipvsadm
 	;;
 
@@ -77,9 +77,9 @@ case "$1" in
 	;;
 
   panic)
-	# I'm not sure what panic does but in the case of IPVS
-	# it makes sense just to clear everything
-	action "Clearing the current IPVS table:" ipvsadm -C
+	# I'm not sure what panic does but in the case of IPVS	
+        # it makes sense just to clear everything
+        action "Clearing the current IPVS table:" ipvsadm -C
 	;;
 
   status)
@@ -88,10 +88,10 @@ case "$1" in
 
   save)
 	echo -n "Saving IPVS table to $IPVSADM_CONFIG: "
-	ipvsadm-save > $IPVSADM_CONFIG  2>/dev/null && \
+	ipvsadm-save -n > $IPVSADM_CONFIG  2>/dev/null && \
 	  success "Saving IPVS table to $IPVSADM_CONFIG" || \
 	  failure "Saving IPVS table to $IPVSADM_CONFIG"
-	echo
+        echo
 	;;
 
   *)
@@ -101,3 +101,4 @@ case "$1" in
 esac
 
 exit 0
+

@@ -12,13 +12,15 @@
 #
 #      ChangeLog
 #      Horms               :        Clear IPVS rules before adding from STDIN
+#      Horms               :        Filter out "^#"
 #
 #
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 
-# All the work is actually done in ipvsadm, horay
+# All the work is actually done in ipvsadm, hooray
 
-INPUT="$(cat)"
+INPUT="$(grep -v '^#')"
 ipvsadm -C
 echo "$INPUT" | ipvsadm -R
+

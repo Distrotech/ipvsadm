@@ -14,6 +14,7 @@
 
 #define MAX_LINE_LENGTH 4096
 
-dynamic_array_t *config_stream_read (FILE *stream, const char *first_element);
+dynamic_array_t *config_stream_read(FILE * stream,
+				    const char *first_element);
 
 #endif

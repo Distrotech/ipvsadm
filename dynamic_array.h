@@ -35,7 +35,7 @@
 
 
 typedef struct {
-  void   **vector;
+  void **vector;
   size_t count;
   size_t allocated_size;
   size_t block_size;
@@ -46,15 +46,15 @@ typedef struct {
  * dynamic_array_create
  * Create a dynamic array
  * pre: block_size: blocking size to use.
- *                  DEFAULT_DYNAMIC_ARRAY_BLOCK_SIZE is used if 
+ *                  DEFAULT_DYNAMIC_ARRAY_BLOCK_SIZE is used if
  *                  block_size is 0
  *                  Block size refers to how many elements are prealocated
- *                  each time the array is grown. 
- * return: An empty dynamic array 
+ *                  each time the array is grown.
+ * return: An empty dynamic array
  *         NULL on error
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_create(size_t block_size);
+extern dynamic_array_t *dynamic_array_create(size_t block_size);
 
 
 /**********************************************************************
@@ -62,7 +62,7 @@ dynamic_array_t *dynamic_array_create(size_t block_size);
  * Free an array an all the elements held within
  * pre: a: array to destroy
  *      destroy_element: pointer to funtion to destroy array elements
- *                       Function should take an argument of a pointer 
+ *                       Function should take an argument of a pointer
  *                       and free the memory allocated to the structure
  *                       pointed to.
  * post: array is freed and destroy_element is called for all elements
@@ -70,7 +70,8 @@ dynamic_array_t *dynamic_array_create(size_t block_size);
  *       Nothing if a is NULL
  **********************************************************************/
 
-void dynamic_array_destroy(dynamic_array_t *a, void (*destroy_element)(void *));
+void dynamic_array_destroy(dynamic_array_t * a,
+			   void (*destroy_element) (void *));
 
 
 /**********************************************************************
@@ -80,25 +81,27 @@ void dynamic_array_destroy(dynamic_array_t *a, void (*destroy_element)(void *));
  *      e: element to add
  *      destroy_element: pointer to a function to destroy an element
  *                       passed to dynamic_array_destroy on error
- *      duplicate_element: pointer to a function to duplicate an 
- *                         element should take a pointer to an element 
- *                         to duplicate as the only element and return 
- *                         a copy of the element Any memory allocation 
+ *      duplicate_element: pointer to a function to duplicate an
+ *                         element should take a pointer to an element
+ *                         to duplicate as the only element and return
+ *                         a copy of the element Any memory allocation
  *                         required should be done by this function.
  * post: element in inserted in the first unused position in the array
- *       array size is incresaed by a->block_size if there is 
+ *       array size is increased by a->block_size if there is
  *       insufficient room in the array to add the element.
  *       Nothing is done if e is NULL
  * return: a on success
  *         NULL if a is NULL or an error occurs
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_add_element(
-  dynamic_array_t *a, 
-  const void *e,
-  void (*destroy_element)(void *s),
-  void *(*duplicate_element)(const void *s)
-);
+dynamic_array_t *dynamic_array_add_element(dynamic_array_t * a,
+					   const void *e,
+					   void (*destroy_element) (void
+								    *s),
+					   void
+					   *(*duplicate_element) (const
+								  void
+								  *s));
 
 
 /**********************************************************************
@@ -118,12 +121,11 @@ dynamic_array_t *dynamic_array_add_element(
  *         NULL on error, NULL a or empty a
  **********************************************************************/
 
-char *dynamic_array_display(
-  dynamic_array_t *a,
-  char delimiter,
-  void (*display_element)(char *, void *),
-  size_t (*element_length)(void *)
-);
+char *dynamic_array_display(dynamic_array_t * a,
+			    char delimiter,
+			    void (*display_element) (char *, void *),
+			    size_t(*element_length) (void *)
+    );
 
 
 /**********************************************************************
@@ -136,7 +138,7 @@ char *dynamic_array_display(
  *         NULL if element is beyond the number of elements in the arary
  **********************************************************************/
 
-void *dynamic_array_get_element(dynamic_array_t *a, size_t elementno);
+void *dynamic_array_get_element(dynamic_array_t * a, size_t elementno);
 
 
 /**********************************************************************
@@ -147,7 +149,7 @@ void *dynamic_array_get_element(dynamic_array_t *a, size_t elementno);
  *         -1 if a is NULL
  **********************************************************************/
 
-size_t dynamic_array_get_count(dynamic_array_t *a);
+size_t dynamic_array_get_count(dynamic_array_t * a);
 
 /**********************************************************************
  * dynamic_array_get_vector
@@ -157,7 +159,7 @@ size_t dynamic_array_get_count(dynamic_array_t *a);
  *         NULL if a is NULL
  **********************************************************************/
 
-void *dynamic_array_get_vector(dynamic_array_t *a);
+void *dynamic_array_get_vector(dynamic_array_t * a);
 
 
 /**********************************************************************
@@ -165,13 +167,14 @@ void *dynamic_array_get_vector(dynamic_array_t *a);
  * Split a string into substrings on a delimiter
  * pre: str: string to split
  *      delimiter: character to split string on
- * post: string is split. 
+ * post: string is split.
  *       Note: The string is modified.
  * return: dynamic array containing sub_strings
  *         NULL on error
  *         string being NULL is an error state
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_split_str(char *string, const char delimiter);
+dynamic_array_t *dynamic_array_split_str(char *string,
+					 const char delimiter);
 
 #endif

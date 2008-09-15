@@ -20,24 +20,27 @@
  * pre: block_size: blocking size to use.
  *                  DEFAULT_DYNAMIC_ARRAY_BLOCK_SIZE is used if block_size is 0
  *                  Block size refers to how many elements are prealocated
- *                  each time the array is grown. 
- * return: An empty dynamic array 
+ *                  each time the array is grown.
+ * return: An empty dynamic array
  *         NULL on error
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_create(size_t block_size){
+dynamic_array_t *
+dynamic_array_create(size_t block_size)
+{
   dynamic_array_t *a;
 
-  if((a=(dynamic_array_t *)malloc(sizeof(dynamic_array_t)))==NULL){
-    return(NULL);
+  if ((a = (dynamic_array_t *) malloc(sizeof(dynamic_array_t))) == NULL) {
+    return (NULL);
   }
 
-  a->vector=NULL;
-  a->count=0;
-  a->allocated_size=0;
-  a->block_size=block_size?block_size:DEFAULT_DYNAMIC_ARRAY_BLOCK_SIZE;
+  a->vector = NULL;
+  a->count = 0;
+  a->allocated_size = 0;
+  a->block_size =
+      block_size ? block_size : DEFAULT_DYNAMIC_ARRAY_BLOCK_SIZE;
 
-  return(a);
+  return (a);
 }
 
 
@@ -46,7 +49,7 @@ dynamic_array_t *dynamic_array_create(size_t block_size){
  * Free an array an all the elements held within
  * pre: a: array to destroy
  *      destroy_element: pointer to funtion to destroy array elements
- *                       Function should take an argument of a pointer 
+ *                       Function should take an argument of a pointer
  *                       and free the memory allocated to the structure
  *                       pointed to.
  * post: array is freed and destroy_element is called for all elements
@@ -54,12 +57,16 @@ dynamic_array_t *dynamic_array_create(size_t block_size){
  *       Nothing if a is NULL
  **********************************************************************/
 
-void dynamic_array_destroy(dynamic_array_t *a, void (*destroy_element)(void *)){
-  if(a==NULL) return;
-  while(a->count-->0){
-    destroy_element(*(a->vector+a->count));
+void
+dynamic_array_destroy(dynamic_array_t * a,
+		      void (*destroy_element) (void *))
+{
+  if (a == NULL)
+    return;
+  while (a->count-- > 0) {
+    destroy_element(*(a->vector + a->count));
   }
-  if(a->allocated_size>0){
+  if (a->allocated_size > 0) {
     free(a->vector);
   }
 }
@@ -72,43 +79,44 @@ void dynamic_array_destroy(dynamic_array_t *a, void (*destroy_element)(void *)){
  *      e: element to add
  *      destroy_element: pointer to a function to destroy an element
  *                       passed to dynamic_array_destroy on error
- *      duplicate_element: pointer to a function to duplicate an 
- *                         element should take a pointer to an element 
- *                         to duplicate as the only element and return 
- *                         a copy of the element Any memory allocation 
+ *      duplicate_element: pointer to a function to duplicate an
+ *                         element should take a pointer to an element
+ *                         to duplicate as the only element and return
+ *                         a copy of the element Any memory allocation
  *                         required should be done by this function.
  * post: element in inserted in the first unused position in the array
- *       array size is incresaed by a->block_size if there is 
+ *       array size is increased by a->block_size if there is
  *       insufficient room in the array to add the element.
  *       Nothing is done if e is NULL
  * return: a on success
  *         NULL if a is NULL or an error occurs
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_add_element(
-  dynamic_array_t *a, 
-  const void *e,
-  void (*destroy_element)(void *s),
-  void *(*duplicate_element)(const void *s)
-){
-  if(a==NULL) return(NULL);
-  if(e==NULL) return(a);
-  if(a->count==a->allocated_size){
-    a->allocated_size+=a->block_size;
-    if(
-      (a->vector=(void**)realloc(a->vector,a->allocated_size*sizeof(void*)))
-      ==NULL
-    ){
+dynamic_array_t *
+dynamic_array_add_element(dynamic_array_t * a,
+			  const void *e, void (*destroy_element) (void *s), void
+			  *(*duplicate_element) (const void *s))
+{
+  if (a == NULL)
+    return (NULL);
+  if (e == NULL)
+    return (a);
+  if (a->count == a->allocated_size) {
+    a->allocated_size += a->block_size;
+    if (
+	(a->vector =
+	 (void **) realloc(a->vector,
+			   a->allocated_size * sizeof(void *))) == NULL) {
       dynamic_array_destroy(a, destroy_element);
-      return(NULL);
+      return (NULL);
     }
   }
-  if((*(a->vector+a->count)=(void *)duplicate_element(e))==NULL){
-    return(NULL);
+  if ((*(a->vector + a->count) = (void *) duplicate_element(e)) == NULL) {
+    return (NULL);
   }
   a->count++;
 
-  return(a);
+  return (a);
 }
 
 
@@ -129,44 +137,46 @@ dynamic_array_t *dynamic_array_add_element(
  *         NULL on error, NULL a or empty a
  **********************************************************************/
 
-char *dynamic_array_display(
-  dynamic_array_t *a, 
-  char delimiter,
-  void (*display_element)(char *, void *),
-  size_t (*element_length)(void *)
-){
-  void   **a_current;
-  void   **a_top;
-  char   *buffer;
-  char   *buffer_current;
+char *
+dynamic_array_display(dynamic_array_t * a,
+		      char delimiter,
+		      void (*display_element) (char *, void *),
+		      size_t(*element_length) (void *))
+{
+  void **a_current;
+  void **a_top;
+  char *buffer;
+  char *buffer_current;
   size_t nochar;
-  size_t len=0;
+  size_t len = 0;
 
-  if(a==NULL || a->count==0){ return(NULL); }
-  a_top=a->vector+a->count;
-  nochar=a->count;
-  for(a_current=a->vector;a_current<a_top;a_current++){
-    nochar+=(len=element_length(*a_current));
-    if(!len){
+  if (a == NULL || a->count == 0) {
+    return (NULL);
+  }
+  a_top = a->vector + a->count;
+  nochar = a->count;
+  for (a_current = a->vector; a_current < a_top; a_current++) {
+    nochar += (len = element_length(*a_current));
+    if (!len) {
       nochar--;
     }
   }
-  if((buffer=(char*)malloc(nochar))==NULL){
-    return(NULL);
+  if ((buffer = (char *) malloc(nochar)) == NULL) {
+    return (NULL);
   }
-  buffer_current=buffer;
-  for(a_current=a->vector;a_current<a_top;a_current++){
-    if((len=element_length(*a_current))){
+  buffer_current = buffer;
+  for (a_current = a->vector; a_current < a_top; a_current++) {
+    if ((len = element_length(*a_current))) {
       display_element(buffer_current, *a_current);
-      buffer_current+=element_length(*a_current);
-      *buffer_current++=delimiter;
+      buffer_current += element_length(*a_current);
+      *buffer_current++ = delimiter;
     }
   }
-  if(len){
+  if (len) {
     buffer_current--;
   }
-  *buffer_current='\0';
-  return(buffer);
+  *buffer_current = '\0';
+  return (buffer);
 }
 
 
@@ -180,9 +190,12 @@ char *dynamic_array_display(
  *         NULL if element is beyond the number of elements in the arary
  **********************************************************************/
 
-void *dynamic_array_get_element(dynamic_array_t *a, size_t elementno){
-  if(elementno>a->count) return(NULL);
-  return(*((a->vector)+elementno));
+void *
+dynamic_array_get_element(dynamic_array_t * a, size_t elementno)
+{
+  if (elementno > a->count)
+    return (NULL);
+  return (*((a->vector) + elementno));
 }
 
 
@@ -194,9 +207,12 @@ void *dynamic_array_get_element(dynamic_array_t *a, size_t elementno){
  *         -1 if a is NULL
  **********************************************************************/
 
-size_t dynamic_array_get_count(dynamic_array_t *a){
-  if(a==NULL) return(-1);
-  return(a->count);
+size_t
+dynamic_array_get_count(dynamic_array_t * a)
+{
+  if (a == NULL)
+    return (-1);
+  return (a->count);
 }
 
 
@@ -208,9 +224,12 @@ size_t dynamic_array_get_count(dynamic_array_t *a){
  *         NULL if a is NULL
  **********************************************************************/
 
-void *dynamic_array_get_vector(dynamic_array_t *a){
-  if(a==NULL) return(NULL);
-  return(a->vector);
+void *
+dynamic_array_get_vector(dynamic_array_t * a)
+{
+  if (a == NULL)
+    return (NULL);
+  return (a->vector);
 }
 
 
@@ -219,34 +238,35 @@ void *dynamic_array_get_vector(dynamic_array_t *a){
  * Split a string into substrings on a delimiter
  * pre: str: string to split
  *      delimiter: character to split string on
- * post: string is split. 
+ * post: string is split.
  *       Note: The string is modified.
  * return: dynamic array containing sub_strings
  *         NULL on error
  *         string being NULL is an error state
  **********************************************************************/
 
-dynamic_array_t *dynamic_array_split_str(char *string, const char delimiter){
+dynamic_array_t *
+dynamic_array_split_str(char *string, const char delimiter)
+{
   dynamic_array_t *a;
   char *sub_string;
 
-  if(string==NULL){ return(NULL); }
-  if((a=dynamic_array_create(0))==NULL){
-    return(NULL);
+  if (string == NULL) {
+    return (NULL);
   }
-  while((sub_string=strchr(string, delimiter))!=NULL){
-    *sub_string='\0';
-    if(dynamic_array_add_element(a, string, DESTROY_STR, DUP_STR)==NULL){
-      return(NULL);
+  if ((a = dynamic_array_create(0)) == NULL) {
+    return (NULL);
+  }
+  while ((sub_string = strchr(string, delimiter)) != NULL) {
+    *sub_string = '\0';
+    if (dynamic_array_add_element(a, string, DESTROY_STR, DUP_STR) == NULL) {
+      return (NULL);
     }
-    string=sub_string+1;
+    string = sub_string + 1;
   }
-  if(
-    *string!='\0' &&
-    dynamic_array_add_element(a, string, DESTROY_STR, DUP_STR)==NULL
-  ){
-    return(NULL);
+  if (*string != '\0' &&
+      dynamic_array_add_element(a, string, DESTROY_STR, DUP_STR) == NULL) {
+    return (NULL);
   }
-  return(a);
+  return (a);
 }
-

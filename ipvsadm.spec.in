@@ -6,21 +6,19 @@ Version: @@VERSION@@
 Release: @@RELEASE@@
 Copyright: GNU General Public Licence
 URL: http://www.LinuxVirtualServer.org/
-Packager: Horms <horms@vergenet.net>	P.Copeland <bryce@redhat.com>
 Group: Applications/System
 Source0: http://www.LinuxVirtualServer.org/software/ipvsadm-%{version}.tar.gz
 BuildRoot: /var/tmp/%name-%{PACKAGE_VERSION}-root
-Docdir: %{prefix}/doc
 Provides: %{name}-%{version}
 Conflicts: piranha <= 0.4.14
 
 %description
-ipvsadm is a utility to administer the IP virtual server services
-offered by the Linux kernel augmented with the virtual server patch.
+ipvsadm is a utility to administer the IP Virtual Server services
+offered by the latest Linux kernel 2.6.x.
 
 
 %prep
-%setup -n ipvsadm
+%setup -n %{name}-%{version}
 
 
 %build
@@ -30,7 +28,21 @@ CFLAGS="${RPM_OPT_FLAGS}" make
 %install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p ${RPM_BUILD_ROOT}/{sbin,%{_mandir}/man8,etc/rc.d/init.d}
-BUILD_ROOT=${RPM_BUILD_ROOT} MANDIR=${RPM_BUILD_ROOT}/%{_mandir}/man8 make install
+make install BUILD_ROOT=${RPM_BUILD_ROOT} MANDIR=%{_mandir}
+
+
+%files
+%defattr(-,root,root)
+%doc README
+%config /etc/rc.d/init.d/ipvsadm
+/sbin/ipvsadm*
+%{_mandir}/man8/ipvsadm*
+
+%post
+/sbin/chkconfig --add ipvsadm
+
+%preun
+/sbin/chkconfig --del ipvsadm
 
 
 %clean
@@ -38,15 +50,19 @@ rm -rf $RPM_BUILD_DIR/%{name}
 rm -rf $RPM_BUILD_ROOT
 
 
-%files
-%defattr(-,root,root)
-%doc README
-%config /etc/rc.d/init.d/ipvsadm
-/sbin/*
-/usr/man/man*/*
-
-
 %changelog
+* Thu Jun 23 2005 Steve Nielsen <snielsen@comscore.com>
+- Respect rpmmacros that might be set (by using rpm --eval)
+
+* Sat Dec 20 2003 Wensong Zhang <wensong@linux-vs.org>
+- tidy up the description
+
+* Sat Apr  5 2003 Wensong Zhang <wensong@linux-vs.org>
+- Removed the unnecessary Docdir setting.
+
+* Thu Dec 16 2001 Wensong Zhang <wensong@linuxvirtualserver.org>
+- Changed to install ipvsadm man pages according to the %{_mandir}
+
 * Thu Dec 30 2000 Wensong Zhang <wensong@linuxvirtualserver.org>
 - update the %file section
 
@@ -54,7 +70,7 @@ rm -rf $RPM_BUILD_ROOT
 - Added a if-condition to keep both new or old rpm utility building
   the package happily.
 
-* Tue Dec 12 2000 P.opeland <bryce@redhat.com>
+* Tue Dec 12 2000 P.Copeland <bryce@redhat.com>
 - Small modifications to make the compiler happy in RH7 and the Alpha
 - Fixed the documentation file that got missed off in building
   the rpm
