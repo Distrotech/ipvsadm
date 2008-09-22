@@ -6,13 +6,10 @@
 #ifndef _IP_VS_H
 #define _IP_VS_H
 
-#include <asm/types.h>		/* For __uXX types */
-#include <linux/types.h>	/* For __beXX types in userland */
-
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <linux/types.h>	/* For __beXX types in userland */
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
