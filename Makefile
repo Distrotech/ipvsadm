@@ -35,7 +35,7 @@ RPMSOURCEDIR	= $(shell rpm --eval '%_sourcedir')
 RPMSPECDIR	= $(shell rpm --eval '%_specdir')
 
 CC		= gcc
-INCLUDE		= -I.. -I.
+INCLUDE		=
 SBIN		= $(BUILD_ROOT)/sbin
 MANDIR		= usr/man
 MAN		= $(BUILD_ROOT)/$(MANDIR)/man8

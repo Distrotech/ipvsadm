@@ -19,7 +19,7 @@ all:		$(STATIC_LIB) $(SHARED_LIB)
 
 $(STATIC_LIB):	libipvs.o ip_vs_nl_policy.o
 		ar rv $@ $^
-		
+
 $(SHARED_LIB):	libipvs.o ip_vs_nl_policy.o
 		$(CC) -shared -Wl,-soname,$@ -o $@ $^
 

@@ -30,12 +30,6 @@
 #define IP_VS_SVC_F_HASHED	0x0002		/* hashed entry */
 
 /*
- *      Destination Server Flags
- */
-#define IP_VS_DEST_F_AVAILABLE	0x0001		/* server is available */
-#define IP_VS_DEST_F_OVERLOAD	0x0002		/* server is overloaded */
-
-/*
  *      IPVS sync daemon states
  */
 #define IP_VS_STATE_NONE	0x0000		/* daemon is stopped */
@@ -94,9 +88,6 @@
 #define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
 #define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
 #define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
-
-/* Move it to better place one day, for now keep it unique */
-#define NFC_IPVS_PROPERTY	0x10000
 
 #define IP_VS_SCHEDNAME_MAXLEN	16
 #define IP_VS_IFNAME_MAXLEN	16
