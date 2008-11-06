@@ -32,8 +32,8 @@ static void* ipvs_func = NULL;
 struct ip_vs_getinfo ipvs_info;
 
 #ifdef LIBIPVS_USE_NL
-struct nl_handle *sock = NULL;
-int family, try_nl = 1;
+static struct nl_handle *sock = NULL;
+static int family, try_nl = 1;
 #endif
 
 #define CHECK_IPV4(s, ret) if (s->af && s->af != AF_INET)	\
@@ -116,6 +116,7 @@ int ipvs_init(void)
 
 #ifdef LIBIPVS_USE_NL
 	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0) {
+		try_nl = 1;
 		return ipvs_getinfo();
 	}
 
