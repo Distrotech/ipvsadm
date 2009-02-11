@@ -62,11 +62,12 @@ RPMBUILD = $(shell				\
 	fi )
 
 ifeq (,$(FORCE_GETOPT))
-LIB_SEARCH = /lib /usr/lib /usr/local/lib
+LIB_SEARCH = /lib64 /usr/lib64 /usr/local/lib64 /lib /usr/lib /usr/local/lib
 POPT_LIB = $(shell for i in $(LIB_SEARCH); do \
   if [ -f $$i/libpopt.a ]; then \
     if nm $$i/libpopt.a | fgrep -q poptGetContext; then \
 	echo "-lpopt"; \
+	break; \
     fi; \
   fi; \
 done)
