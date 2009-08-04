@@ -196,8 +196,8 @@ Use a firewall-mark, an integer value greater than zero, to denote a
 virtual service instead of an address, port and protocol (UDP or
 TCP). The marking of packets with a firewall-mark is configured using
 the -m|--mark option to \fBiptables\fR(8). It can be used to build a
-virtual service assoicated with the same real servers, covering
-multiple IP address, port and protocol tripplets. If IPv6 addresses
+virtual service associated with the same real servers, covering
+multiple IP address, port and protocol triplets. If IPv6 addresses
 are used, the -6 option must be used.
 .sp
 Using firewall-mark virtual services provides a convenient method of
@@ -212,7 +212,7 @@ services.
 UDP datagrams to real servers.  Scheduling algorithms are implemented
 as kernel modules. Ten are shipped with the Linux Virtual Server:
 .sp
-\fBrr\fR - Robin Robin: distributes jobs equally amongst the available
+\fBrr\fR - Round Robin: distributes jobs equally amongst the available
 real servers.
 .sp
 \fBwrr\fR - Weighted Round Robin: assigns jobs to real servers
