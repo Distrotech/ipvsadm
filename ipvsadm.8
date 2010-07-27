@@ -414,6 +414,12 @@ option is only relevant for the -L command.
 .TP
 .B -6, --ipv6
 Use with -f to signify fwmark rule uses IPv6 addresses.
+.TP
+.B -o, --ops
+One-packet scheduling.
+Used in conjunction with a UDP virtual service or
+a fwmark virtual service that handles only UDP packets.
+All connections are created such that they only schedule one packet.
 .SH EXAMPLE 1 - Simple Virtual Service
 The following commands configure a Linux Director to distribute
 incoming requests addressed to port 80 on 207.175.44.110 equally to

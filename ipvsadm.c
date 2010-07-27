@@ -180,7 +180,8 @@ static const char* cmdnames[] = {
 #define OPT_NOSORT		0x040000
 #define OPT_SYNCID		0x080000
 #define OPT_EXACT		0x100000
-#define NUMBER_OF_OPT		21
+#define OPT_ONEPACKET		0x200000
+#define NUMBER_OF_OPT		22
 
 static const char* optnames[] = {
 	"numeric",
@@ -204,6 +205,7 @@ static const char* optnames[] = {
 	"nosort",
 	"syncid",
 	"exact",
+	"ops",
 };
 
 /*
@@ -418,6 +420,7 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 		{ "sort", '\0', POPT_ARG_NONE, NULL, TAG_SORT, NULL, NULL },
 		{ "exact", 'X', POPT_ARG_NONE, NULL, 'X', NULL, NULL },
 		{ "ipv6", '6', POPT_ARG_NONE, NULL, '6', NULL, NULL },
+		{ "ops", 'o', POPT_ARG_NONE, NULL, 'o', NULL, NULL },
 		{ NULL, 0, 0, NULL, 0, NULL, NULL }
 	};
 
@@ -520,7 +523,7 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 			break;
 		case 'p':
 			set_option(options, OPT_PERSISTENT);
-			ce->svc.flags = IP_VS_SVC_F_PERSISTENT;
+			ce->svc.flags |= IP_VS_SVC_F_PERSISTENT;
 			ce->svc.timeout =
 				parse_timeout(optarg, 1, MAX_TIMEOUT);
 			break;
@@ -640,6 +643,10 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 				fail(2, "-6 used before -f\n");
 			}
 			break;
+		case 'o':
+			set_option(options, OPT_ONEPACKET);
+			ce->svc.flags |= IP_VS_SVC_F_ONEPACKET;
+			break;
 		default:
 			fail(2, "invalid option `%s'",
 			     poptBadOption(context, POPT_BADOPTION_NOALIAS));
@@ -725,9 +732,14 @@ static int process_options(int argc, char **argv, int reading_stdin)
 	if (ce.cmd == CMD_ADD || ce.cmd == CMD_EDIT) {
 		/* Make sure that port zero service is persistent */
 		if (!ce.svc.fwmark && !ce.svc.port &&
-		    (ce.svc.flags != IP_VS_SVC_F_PERSISTENT))
+		    !(ce.svc.flags & IP_VS_SVC_F_PERSISTENT))
 			fail(2, "Zero port specified "
 			     "for non-persistent service");
+
+		if (ce.svc.flags & IP_VS_SVC_F_ONEPACKET &&
+		    !ce.svc.fwmark && ce.svc.protocol != IPPROTO_UDP)
+			fail(2, "One-Packet Scheduling is only "
+			     "for UDP virtual services");
 
 		/* Set the default scheduling algorithm if not specified */
 		if (strlen(ce.svc.sched_name) == 0)
@@ -1116,6 +1128,7 @@ static void usage_exit(const char *program, const int exit_status)
 		"  --persistent-conn                   output of persistent connection info\n"
 		"  --nosort                            disable sorting output of service/server entries\n"
 		"  --sort                              does nothing, for backwards compatibility\n"
+		"  --ops          -o                   one-packet scheduling\n"
 		"  --numeric      -n                   numeric output of addresses and ports\n",
 		DEF_SCHED);
 
@@ -1448,6 +1461,8 @@ print_service_entry(ipvs_service_entry_t *se, unsigned int format)
 					printf(" -M %i", se->netmask);
 				}
 		}
+		if (se->flags & IP_VS_SVC_F_ONEPACKET)
+			printf(" ops");
 	} else if (format & FMT_STATS) {
 		printf("%-33s", svc_name);
 		print_largenum(se->stats.conns, format);
@@ -1475,6 +1490,8 @@ print_service_entry(ipvs_service_entry_t *se, unsigned int format)
 			if (se->af == AF_INET6)
 				if (se->netmask != 128)
 					printf(" mask %i", se->netmask);
+			if (se->flags & IP_VS_SVC_F_ONEPACKET)
+				printf(" ops");
 		}
 	}
 	printf("\n");
