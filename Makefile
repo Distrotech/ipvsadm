@@ -47,7 +47,7 @@ STATIC_LIBS	= libipvs/libipvs.a
 ifeq "${ARCH}" "sparc64"
     CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -m64 -pipe -mcpu=ultrasparc -mcmodel=medlow
 else
-    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -Wextra
+    CFLAGS = -Wall -Wunused -Wstrict-prototypes -g
 endif
 
 
