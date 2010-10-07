@@ -763,11 +763,9 @@ static int process_options(int argc, char **argv, int reading_stdin)
 
 	switch (ce.cmd) {
 	case CMD_LIST:
-		if ((options & OPT_CONNECTION ||
-		     options & OPT_TIMEOUT || options & OPT_DAEMON) &&
-		    (options & OPT_STATS ||
-		     options & OPT_PERSISTENTCONN ||
-		     options & OPT_RATE || options & OPT_THRESHOLDS))
+		if (options & (OPT_CONNECTION|OPT_TIMEOUT|OPT_DAEMON) &&
+		    options & (OPT_STATS|OPT_PERSISTENTCONN|
+			       OPT_RATE|OPT_THRESHOLDS))
 			fail(2, "options conflicts in the list command");
 
 		if (options & OPT_CONNECTION)
