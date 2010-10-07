@@ -181,13 +181,15 @@ static const char* cmdnames[] = {
 #define OPT_SYNCID		0x080000
 #define OPT_EXACT		0x100000
 #define OPT_ONEPACKET		0x200000
-#define NUMBER_OF_OPT		22
+#define OPT_PERSISTENCE_ENGINE  0x400000
+#define NUMBER_OF_OPT		23
 
 static const char* optnames[] = {
 	"numeric",
 	"connection",
 	"service-address",
 	"scheduler",
+	"pe",
 	"persistent",
 	"netmask",
 	"real-server",
@@ -282,6 +284,7 @@ enum {
 	TAG_PERSISTENTCONN,
 	TAG_SORT,
 	TAG_NO_SORT,
+	TAG_PERSISTENCE_ENGINE,
 };
 
 /* various parsing helpers & parsing functions */
@@ -421,6 +424,8 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 		{ "exact", 'X', POPT_ARG_NONE, NULL, 'X', NULL, NULL },
 		{ "ipv6", '6', POPT_ARG_NONE, NULL, '6', NULL, NULL },
 		{ "ops", 'o', POPT_ARG_NONE, NULL, 'o', NULL, NULL },
+		{ "pe", '\0', POPT_ARG_STRING, &optarg, TAG_PERSISTENCE_ENGINE,
+		  NULL, NULL },
 		{ NULL, 0, 0, NULL, 0, NULL, NULL }
 	};
 
@@ -647,6 +652,10 @@ parse_options(int argc, char **argv, struct ipvs_command_entry *ce,
 			set_option(options, OPT_ONEPACKET);
 			ce->svc.flags |= IP_VS_SVC_F_ONEPACKET;
 			break;
+		case TAG_PERSISTENCE_ENGINE:
+			set_option(options, OPT_PERSISTENCE_ENGINE);
+			strncpy(ce->svc.pe_name, optarg, IP_VS_PENAME_MAXLEN);
+			break;
 		default:
 			fail(2, "invalid option `%s'",
 			     poptBadOption(context, POPT_BADOPTION_NOALIAS));
@@ -763,9 +772,10 @@ static int process_options(int argc, char **argv, int reading_stdin)
 
 	switch (ce.cmd) {
 	case CMD_LIST:
-		if (options & (OPT_CONNECTION|OPT_TIMEOUT|OPT_DAEMON) &&
-		    options & (OPT_STATS|OPT_PERSISTENTCONN|
-			       OPT_RATE|OPT_THRESHOLDS))
+		if ((options & (OPT_CONNECTION|OPT_TIMEOUT|OPT_DAEMON) &&
+		     options & (OPT_STATS|OPT_RATE|OPT_THRESHOLDS)) ||
+		    (options & (OPT_TIMEOUT|OPT_DAEMON) &&
+		     options & OPT_PERSISTENTCONN))
 			fail(2, "options conflicts in the list command");
 
 		if (options & OPT_CONNECTION)
@@ -1060,7 +1070,7 @@ static void usage_exit(const char *program, const int exit_status)
 	version(stream);
 	fprintf(stream,
 		"Usage:\n"
-		"  %s -A|E -t|u|f service-address [-s scheduler] [-p [timeout]] [-M netmask]\n"
+		"  %s -A|E -t|u|f service-address [-s scheduler] [-p [timeout]] [-M netmask] [--pe persistence_engine]\n"
 		"  %s -D -t|u|f service-address\n"
 		"  %s -C\n"
 		"  %s -R\n"
@@ -1105,6 +1115,8 @@ static void usage_exit(const char *program, const int exit_status)
 		"  --ipv6         -6                   fwmark entry uses IPv6\n"
 		"  --scheduler    -s scheduler         one of " SCHEDULERS ",\n"
 		"                                      the default scheduler is %s.\n"
+		"  --pe            engine              alternate persistence engine may be " PE_LIST ",\n"
+		"                                      not set by default.\n"
 		"  --persistent   -p [timeout]         persistent service\n"
 		"  --netmask      -M netmask           persistent granularity mask\n"
 		"  --real-server  -r server-address    server-address is host (and port)\n"
@@ -1225,6 +1237,8 @@ static void print_conn(char *buf, unsigned int format)
 	char            state[16];
 	unsigned int    expires;
 	unsigned short  af = AF_INET;
+	char		pe_name[IP_VS_PENAME_MAXLEN];
+	char		pe_data[IP_VS_PEDATA_MAXLEN];
 
 	int n;
 	char temp1[INET6_ADDRSTRLEN], temp2[INET6_ADDRSTRLEN], temp3[INET6_ADDRSTRLEN];
@@ -1232,9 +1246,10 @@ static void print_conn(char *buf, unsigned int format)
 	unsigned int	minutes, seconds;
 	char		expire_str[12];
 
-	if ((n = sscanf(buf, "%s %s %hX %s %hX %s %hX %s %d",
+	if ((n = sscanf(buf, "%s %s %hX %s %hX %s %hX %s %d %s %s",
 			protocol, temp1, &cport, temp2, &vport,
-			temp3, &dport, state, &expires)) == -1)
+			temp3, &dport, state, &expires,
+			pe_name, pe_data)) == -1)
 		exit(1);
 
 	if (strcmp(protocol, "TCP") == 0)
@@ -1268,8 +1283,13 @@ static void print_conn(char *buf, unsigned int format)
 	minutes = expires / 60;
 	sprintf(expire_str, "%02d:%02d", minutes, seconds);
 
-	printf("%-3s %-6s %-11s %-18s %-18s %s\n",
-	       protocol, expire_str, state, cname, vname, dname);
+	if (format & FMT_PERSISTENTCONN && n == 11)
+		printf("%-3s %-6s %-11s %-18s %-18s %-16s %-18s %s\n",
+		       protocol, expire_str, state, cname, vname, dname,
+		       pe_name, pe_data);
+	else
+		printf("%-3s %-6s %-11s %-18s %-18s %s\n",
+		       protocol, expire_str, state, cname, vname, dname);
 
 	free(cname);
 	free(vname);
@@ -1295,8 +1315,13 @@ void list_conn(unsigned int format)
 		exit(1);
 	}
 	printf("IPVS connection entries\n");
-	printf("pro expire %-11s %-18s %-18s %s\n",
-	       "state", "source", "virtual", "destination");
+	if (format & FMT_PERSISTENTCONN)
+		printf("pro expire %-11s %-18s %-18s %-18s %-16s %s\n",
+		       "state", "source", "virtual", "destination",
+		       "pe name", "pe_data");
+	else
+		printf("pro expire %-11s %-18s %-18s %s\n",
+		       "state", "source", "virtual", "destination");
 
 	/*
 	 * Print the VS information according to the format
@@ -1459,6 +1484,8 @@ print_service_entry(ipvs_service_entry_t *se, unsigned int format)
 					printf(" -M %i", se->netmask);
 				}
 		}
+		if (se->pe_name[0])
+			printf(" pe %s", se->pe_name);
 		if (se->flags & IP_VS_SVC_F_ONEPACKET)
 			printf(" ops");
 	} else if (format & FMT_STATS) {
@@ -1488,6 +1515,8 @@ print_service_entry(ipvs_service_entry_t *se, unsigned int format)
 			if (se->af == AF_INET6)
 				if (se->netmask != 128)
 					printf(" mask %i", se->netmask);
+			if (se->pe_name[0])
+				printf(" pe %s", se->pe_name);
 			if (se->flags & IP_VS_SVC_F_ONEPACKET)
 				printf(" ops");
 		}

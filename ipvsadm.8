@@ -391,6 +391,10 @@ with this option will display the persistent connection counter
 information of each server in service listing. The persistent
 connection is used to forward the actual connections from the same
 client/network to the same server.
+.sp
+The \fIlist\fP command with the -c, --connection option and this option
+will include persistence engine data, if any is present, when listing
+connections.
 .TP
 .B --sort
 Sort the list of virtual services and real servers. The virtual

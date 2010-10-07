@@ -29,6 +29,7 @@ NAME		= ipvsadm
 VERSION		= $(shell cat VERSION)
 RELEASE		= 1
 SCHEDULERS	= "$(shell cat SCHEDULERS)"
+PE_LIST		= "$(shell cat PERSISTENCE_ENGINES)"
 PROGROOT	= $(shell basename `pwd`)
 ARCH		= $(shell uname -m)
 RPMSOURCEDIR	= $(shell rpm --eval '%_sourcedir')
@@ -83,7 +84,7 @@ ifneq (0,$(HAVE_NL))
 LIBS		+= -lnl
 endif
 DEFINES		= -DVERSION=\"$(VERSION)\" -DSCHEDULERS=\"$(SCHEDULERS)\" \
-		  $(POPT_DEFINE)
+		  -DPE_LIST=\"$(PE_LIST)\" $(POPT_DEFINE)
 DEFINES		+= $(shell if [ ! -f ../ip_vs.h ]; then	\
 		     echo "-DHAVE_NET_IP_VS_H"; fi;)
 
