@@ -101,16 +101,15 @@ ipvsadm:	$(OBJS) $(STATIC_LIBS)
 
 install:        all
 		if [ ! -d $(SBIN) ]; then $(MKDIR) -p $(SBIN); fi
-		$(INSTALL) -m 0755 -s ipvsadm $(SBIN)
+		$(INSTALL) -m 0755 ipvsadm $(SBIN)
 		$(INSTALL) -m 0755 ipvsadm-save $(SBIN)
 		$(INSTALL) -m 0755 ipvsadm-restore $(SBIN)
 		[ -d $(MAN) ] || $(MKDIR) -p $(MAN)
 		$(INSTALL) -m 0644 ipvsadm.8 $(MAN)
 		$(INSTALL) -m 0644 ipvsadm-save.8 $(MAN)
 		$(INSTALL) -m 0644 ipvsadm-restore.8 $(MAN)
-		if [ -d $(INIT) ]; then \
-		  $(INSTALL) -m 0755 ipvsadm.sh $(INIT)/ipvsadm; \
-		fi
+		[ -d $(INIT) ] || $(MKDIR) -p $(INIT)
+		$(INSTALL) -m 0755 ipvsadm.sh $(INIT)/ipvsadm
 
 clean:
 		rm -f ipvsadm $(NAME).spec $(NAME)-$(VERSION).tar.gz
