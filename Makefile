@@ -127,7 +127,7 @@ dist:		distclean
 		rm -f $(NAME)-$(VERSION)
 		ln -s . $(NAME)-$(VERSION)
 		tar czvf $(NAME)-$(VERSION).tar.gz			\
-		    --exclude CVS					\
+		    --exclude CVS --exclude .svn --exclude TAGS		\
 		    --exclude $(NAME)-$(VERSION)/$(NAME)-$(VERSION)	\
 		    --exclude $(NAME)-$(VERSION).tar.gz			\
 		    $(NAME)-$(VERSION)/*
