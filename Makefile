@@ -25,6 +25,8 @@
 #      Ratz           :   Fixed to use the correct CFLAGS on sparc64
 #
 
+BUILD_ROOT     = $(DESTDIR)
+
 NAME		= ipvsadm
 VERSION		= $(shell cat VERSION)
 RELEASE		= 1
@@ -97,7 +99,7 @@ libs:
 		make -C libipvs
 
 ipvsadm:	$(OBJS) $(STATIC_LIBS)
-		$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+		$(CC) $(CFLAGS) -o $@ $^ $(LIBS) -lpopt -lm
 
 install:        all
 		if [ ! -d $(SBIN) ]; then $(MKDIR) -p $(SBIN); fi
